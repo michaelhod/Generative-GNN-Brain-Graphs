@@ -26,18 +26,23 @@ def train(model, subjects_adj, subjects_labels, args):
                 optimizerD.zero_grad()
                 optimizerG.zero_grad()
 
+                print("lr shape:", lr.shape)
+                print("args.lr_dim:", args.lr_dim)
+                print("args.hr_dim:", args.hr_dim)
+                print("lr type:", lr.dtype)
+
+
                 hr = pad_HR_adj(hr, args.padding)
                 lr = torch.from_numpy(lr).type(torch.FloatTensor)
                 padded_hr = torch.from_numpy(hr).type(torch.FloatTensor)
 
-                eig_val_hr, U_hr = torch.symeig(
-                    padded_hr, eigenvectors=True, upper=True)
+                eig_val_hr, U_hr = torch.linalg.eigh(padded_hr, UPLO='U')
 
                 model_outputs, net_outs, start_gcn_outs, layer_outs = model(
                     lr, args.lr_dim, args.hr_dim)
 
                 mse_loss = args.lmbda * criterion(net_outs, start_gcn_outs) + criterion(
-                    model.layer.weights, U_hr) + criterion(model_outputs, padded_hr)
+                    model.layer.weig    hts, U_hr) + criterion(model_outputs, padded_hr)
 
                 error = criterion(model_outputs, padded_hr)
                 real_data = model_outputs.detach()
