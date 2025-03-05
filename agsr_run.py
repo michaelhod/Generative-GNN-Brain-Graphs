@@ -127,7 +127,7 @@ kf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
 X = v_lr_train
 y = v_hr_train
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 fold_metrics = []
 for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
@@ -145,12 +145,12 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     print(f"  Training samples: {X_train.shape[0]}")
     print(f"  Validation samples: {X_val.shape[0]}")
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = AGSRNet(ks, args).to(device=device)
+    model = AGSRNet(ks, args)
 
-    train(model, X_train, y_train, args, device)
-    test(model, X_val, y_val, args, device)
+    train(model, X_train, y_train, args)
+    test(model, X_val, y_val, args)
 
 
     # print(X_train.shape)
