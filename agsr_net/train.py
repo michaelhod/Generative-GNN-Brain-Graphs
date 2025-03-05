@@ -118,7 +118,7 @@ def test(model, test_adj, test_labels, args):
     preds_list = np.array(preds_list)
     ground_truth = np.array(ground_truth)
 
-    print(f"Predictions shape: {predictions.shape}")
+    print(f"Predictions shape: {preds_list.shape}")
     print(f"Ground truth shape: {ground_truth.shape}")
     #add shape check
 
