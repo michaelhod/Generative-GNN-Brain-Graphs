@@ -149,8 +149,16 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 
     model = AGSRNet(ks, args)
 
+    
+
     train(model, X_train, y_train, args)
-    test(model, X_val, y_val, args)
+    metrics = test(model, X_val, y_val, args)
+
+    print(f"MAE: {metrics['MAE']:.6f}")
+
+
+
+#     evaluation
 
 
     # print(X_train.shape)

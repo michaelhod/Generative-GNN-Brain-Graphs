@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 from preprocessing import *
 from model import *
 import torch.optim as optim
+from evaluation import evaluate_matrices
+
+
 
 criterion = nn.MSELoss()
 
@@ -78,37 +81,51 @@ def test(model, test_adj, test_labels, args):
     g_t = []
     test_error = []
     preds_list = []
+    ground_truth = []
 
     # i = 0
+    with torch.no_grad():
+        for lr, hr in zip(test_adj, test_labels):
+            all_zeros_lr = not np.any(lr)
+            all_zeros_hr = not np.any(hr)
+            if all_zeros_lr == False and all_zeros_hr == False:
+                lr = torch.from_numpy(lr).type(torch.FloatTensor)
+                np.fill_diagonal(hr, 1)
+                hr = pad_HR_adj(hr, args.padding)
+                hr = torch.from_numpy(hr).type(torch.FloatTensor)
+                preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
 
-    for lr, hr in zip(test_adj, test_labels):
-        all_zeros_lr = not np.any(lr)
-        all_zeros_hr = not np.any(hr)
-        if all_zeros_lr == False and all_zeros_hr == False:
-            lr = torch.from_numpy(lr).type(torch.FloatTensor)
-            np.fill_diagonal(hr, 1)
-            hr = pad_HR_adj(hr, args.padding)
-            hr = torch.from_numpy(hr).type(torch.FloatTensor)
-            preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
+                # if i == 0:
+                #     print("Hr", hr)
+                #     print("Preds  ", preds)
+                #     plt.imshow(hr, origin='lower',  extent=[
+                #         0, 10000, 0, 10], aspect=1000)
+                #     plt.show(block=False)
+                #     plt.imshow(preds.detach(), origin='lower',
+                #                extent=[0, 10000, 0, 10], aspect=1000)
+                #     plt.show(block=False)
+                #     plt.imshow(hr - preds.detach(), origin='lower',
+                #                extent=[0, 10000, 0, 10], aspect=1000)
+                #     plt.show(block=False)
 
-            # if i == 0:
-            #     print("Hr", hr)
-            #     print("Preds  ", preds)
-            #     plt.imshow(hr, origin='lower',  extent=[
-            #         0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
-            #     plt.imshow(preds.detach(), origin='lower',
-            #                extent=[0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
-            #     plt.imshow(hr - preds.detach(), origin='lower',
-            #                extent=[0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
+                preds_list.append(preds.flatten().detach().numpy())
+                error = criterion(preds, hr)
+                g_t.append(hr.flatten())
+                print(error.item())
+                test_error.append(error.item())
+                ground_truth.append(hr.cpu().numpy())
 
-            preds_list.append(preds.flatten().detach().numpy())
-            error = criterion(preds, hr)
-            g_t.append(hr.flatten())
-            print(error.item())
-            test_error.append(error.item())
+    preds_list = np.array(preds_list)
+    ground_truth = np.array(ground_truth)
+
+    metrics = evaluate_matrices(preds_list, ground_truth)
+    
+    print("=== Evaluation Results ===")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value}")
+    
+    return metrics
+
             # i += 1
 
     print("Test error MSE: ", np.mean(test_error))
