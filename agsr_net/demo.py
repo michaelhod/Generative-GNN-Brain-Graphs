@@ -11,7 +11,7 @@
                         subjects_adj: (n × l x l) tensor stacking LR connectivity matrices of all training subjects
                                        n: the total number of training subjects
                                        l: the dimensions of the LR connectivity matrices
-                        subjects_ground_truth: (n × h x h) tensor stacking LR connectivity matrices of all training subjects
+                        subjects_ground_truth: (n × h x h)s tensor stacking LR connectivity matrices of all training subjects
                                                 n: the total number of training subjects
                                                 h: the dimensions of the LR connectivity matrices
                         args:          parsed command line arguments, to learn more about the arguments run:
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-subjects_adj, subjects_ground_truth, test_adj, test_ground_truth = data()
+# subjects_adj, subjects_ground_truth, test_adj, test_ground_truth = data()
 
 ks = [0.9, 0.7, 0.6, 0.5]
 model = AGSRNet(ks, args)
@@ -80,10 +80,10 @@ test_adj = np.random.normal(0.5, 1, (87, 160, 160))
 subjects_ground_truth = np.random.normal(0.5, 1, (190, 268, 268))
 test_ground_truth = np.random.normal(0.5, 1, (87, 268, 268))
 
-print(type(subjects_adj))       
-print(type(subjects_ground_truth))
-print(subjects_adj.shape)
-print(subjects_ground_truth.shape)
+# print(type(subjects_adj))       
+# print(type(subjects_ground_truth))
+# print(subjects_adj.shape)
+# print(subjects_ground_truth.shape)
 
 train(model, subjects_adj, subjects_ground_truth, args)
 test(model, test_adj, test_ground_truth, args)
