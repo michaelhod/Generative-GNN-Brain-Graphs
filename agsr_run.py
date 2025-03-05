@@ -127,6 +127,8 @@ kf = KFold(n_splits=k_folds, shuffle=True, random_state=42)
 X = v_lr_train
 y = v_hr_train
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 fold_metrics = []
 for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     print(f"Fold {fold + 1}/{k_folds}")
