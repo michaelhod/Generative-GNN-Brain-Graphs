@@ -25,8 +25,10 @@ class AGSRNet(nn.Module):
     def forward(self, lr, lr_dim, hr_dim):
         with torch.autograd.set_detect_anomaly(True):
             device = lr.device
-            I = torch.eye(self.lr_dim, device=device)
-            A = normalize_adj_torch(lr)  # Remove .type(torch.FloatTensor) since it moves to CPU
+            # Ensure input is float32
+            lr = lr.to(torch.float32)
+            I = torch.eye(self.lr_dim, device=device, dtype=torch.float32)
+            A = normalize_adj_torch(lr)
 
             self.net_outs, self.start_gcn_outs = self.net(A, I)
 

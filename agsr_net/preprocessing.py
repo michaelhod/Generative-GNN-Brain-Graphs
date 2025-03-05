@@ -16,6 +16,8 @@ def pad_HR_adj(label, split):
 
 def normalize_adj_torch(mx):
     device = mx.device
+    # Convert to float32
+    mx = mx.to(torch.float32)
     rowsum = mx.sum(1)
     r_inv_sqrt = torch.pow(rowsum, -0.5).flatten()
     r_inv_sqrt[torch.isinf(r_inv_sqrt)] = 0.

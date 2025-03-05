@@ -28,8 +28,8 @@ def train(model, subjects_adj, subjects_labels, args, device):
                 optimizerG.zero_grad()
 
                 hr = pad_HR_adj(hr, args.padding)
-                lr = torch.from_numpy(lr).to(device)
-                padded_hr = torch.from_numpy(hr).to(device)
+                lr = torch.from_numpy(lr).to(device).to(torch.float32)
+                padded_hr = torch.from_numpy(hr).to(device).to(torch.float32)
 
                 eig_val_hr, U_hr = torch.linalg.eigh(padded_hr, UPLO='U')
 
@@ -46,8 +46,8 @@ def train(model, subjects_adj, subjects_labels, args, device):
                 d_real = netD(real_data)
                 d_fake = netD(fake_data)
 
-                dc_loss_real = bce_loss(d_real, torch.ones(args.hr_dim, 1).to(device))
-                dc_loss_fake = bce_loss(d_fake, torch.zeros(args.hr_dim, 1).to(device))
+                dc_loss_real = bce_loss(d_real, torch.ones(args.hr_dim, 1, dtype=torch.float32, device=device))
+                dc_loss_fake = bce_loss(d_fake, torch.zeros(args.hr_dim, 1, dtype=torch.float32, device=device))
                 dc_loss = dc_loss_real + dc_loss_fake
 
                 dc_loss.backward()
@@ -55,7 +55,7 @@ def train(model, subjects_adj, subjects_labels, args, device):
 
                 d_fake = netD(gaussian_noise_layer(padded_hr, args))
 
-                gen_loss = bce_loss(d_fake, torch.ones(args.hr_dim, 1).to(device))
+                gen_loss = bce_loss(d_fake, torch.ones(args.hr_dim, 1, dtype=torch.float32, device=device))
                 generator_loss = gen_loss + mse_loss
                 generator_loss.backward()
                 optimizerG.step()
@@ -78,10 +78,10 @@ def test(model, test_adj, test_labels, args, device):
         all_zeros_lr = not np.any(lr)
         all_zeros_hr = not np.any(hr)
         if all_zeros_lr == False and all_zeros_hr == False:
-            lr = torch.from_numpy(lr).to(device)
+            lr = torch.from_numpy(lr).to(device).to(torch.float32)
             np.fill_diagonal(hr, 1)
             hr = pad_HR_adj(hr, args.padding)
-            hr = torch.from_numpy(hr).to(device)
+            hr = torch.from_numpy(hr).to(device).to(torch.float32)
             preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
 
             preds_list.append(preds.detach().cpu().numpy().flatten())
