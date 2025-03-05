@@ -74,6 +74,7 @@ from sklearn.model_selection import KFold
 from MatrixVectorizer import MatrixVectorizer
 import pandas as pd
 import numpy as np
+import torch
 ks = [0.9, 0.7, 0.6, 0.5]
 
 class Args:
@@ -142,12 +143,12 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     print(f"  Training samples: {X_train.shape[0]}")
     print(f"  Validation samples: {X_val.shape[0]}")
 
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+    model = AGSRNet(ks, args).to(device=device)
 
-    model = AGSRNet(ks, args)
-
-    train(model, X_train, y_train, args)
-    test(model, X_val, y_val, args)
+    train(model, X_train, y_train, args, device)
+    test(model, X_val, y_val, args, device)
 
 
     # print(X_train.shape)
@@ -161,7 +162,12 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 
     # model = AGSRNet(ks, args)
 
+    X_train = torch.tensor(X_train).to(device)
+    y_train = torch.tensor(y_train).to(device)
 
+    # Before testing
+    X_val = torch.tensor(X_val).to(device) 
+    y_val = torch.tensor(y_val).to(device)
 
 
     train(model, X_train, y_train, args)

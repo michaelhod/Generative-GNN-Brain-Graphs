@@ -9,7 +9,7 @@ import torch.optim as optim
 criterion = nn.MSELoss()
 
 
-def train(model, subjects_adj, subjects_labels, args):
+def train(model, subjects_adj, subjects_labels, args, device):
 
     bce_loss = nn.BCELoss()
     netD = Discriminator(args)
@@ -33,8 +33,8 @@ def train(model, subjects_adj, subjects_labels, args):
 
 
                 hr = pad_HR_adj(hr, args.padding)
-                lr = torch.from_numpy(lr).type(torch.FloatTensor)
-                padded_hr = torch.from_numpy(hr).type(torch.FloatTensor)
+                lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
+                padded_hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
 
                 eig_val_hr, U_hr = torch.linalg.eigh(padded_hr, UPLO='U')
 
@@ -73,7 +73,7 @@ def train(model, subjects_adj, subjects_labels, args):
             all_epochs_loss.append(np.mean(epoch_loss))
 
 
-def test(model, test_adj, test_labels, args):
+def test(model, test_adj, test_labels, args, device):
 
     g_t = []
     test_error = []
@@ -85,10 +85,10 @@ def test(model, test_adj, test_labels, args):
         all_zeros_lr = not np.any(lr)
         all_zeros_hr = not np.any(hr)
         if all_zeros_lr == False and all_zeros_hr == False:
-            lr = torch.from_numpy(lr).type(torch.FloatTensor)
+            lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
             np.fill_diagonal(hr, 1)
             hr = pad_HR_adj(hr, args.padding)
-            hr = torch.from_numpy(hr).type(torch.FloatTensor)
+            hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
             preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
 
             # if i == 0:
