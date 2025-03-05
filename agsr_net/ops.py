@@ -9,7 +9,8 @@ class GraphUnpool(nn.Module):
         super(GraphUnpool, self).__init__()
 
     def forward(self, A, X, idx):
-        new_X = torch.zeros([A.shape[0], X.shape[1]])
+        device = A.device
+        new_X = torch.zeros([A.shape[0], X.shape[1]], device=device)
         new_X[idx] = X
         return A, new_X
 
