@@ -23,8 +23,9 @@ class GraphPool(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, A, X):
+        device = A.device
+        self.proj = self.proj.to(device)
         scores = self.proj(X)
-        # scores = torch.abs(scores)
         scores = torch.squeeze(scores)
         scores = self.sigmoid(scores/100)
         num_nodes = A.shape[0]
@@ -45,7 +46,8 @@ class GCN(nn.Module):
         self.drop = nn.Dropout(p=0)
 
     def forward(self, A, X):
-
+        device = A.device
+        self.proj = self.proj.to(device)
         X = self.drop(X)
         X = torch.matmul(A, X)
         X = self.proj(X)
@@ -61,18 +63,23 @@ class GraphUnet(nn.Module):
         self.start_gcn = GCN(in_dim, dim)
         self.bottom_gcn = GCN(dim, dim)
         self.end_gcn = GCN(2*dim, out_dim)
-        self.down_gcns = []
-        self.up_gcns = []
-        self.pools = []
-        self.unpools = []
+        self.down_gcns = nn.ModuleList([GCN(dim, dim) for _ in range(len(ks))])
+        self.up_gcns = nn.ModuleList([GCN(dim, dim) for _ in range(len(ks))])
+        self.pools = nn.ModuleList([GraphPool(ks[i], dim) for i in range(len(ks))])
+        self.unpools = nn.ModuleList([GraphUnpool() for _ in range(len(ks))])
         self.l_n = len(ks)
-        for i in range(self.l_n):
-            self.down_gcns.append(GCN(dim, dim))
-            self.up_gcns.append(GCN(dim, dim))
-            self.pools.append(GraphPool(ks[i], dim))
-            self.unpools.append(GraphUnpool())
 
     def forward(self, A, X):
+        device = A.device
+        # Move all components to the correct device
+        self.start_gcn = self.start_gcn.to(device)
+        self.bottom_gcn = self.bottom_gcn.to(device)
+        self.end_gcn = self.end_gcn.to(device)
+        self.down_gcns = self.down_gcns.to(device)
+        self.up_gcns = self.up_gcns.to(device)
+        self.pools = self.pools.to(device)
+        self.unpools = self.unpools.to(device)
+
         adj_ms = []
         indices_list = []
         down_outs = []
@@ -80,7 +87,6 @@ class GraphUnet(nn.Module):
         start_gcn_outs = X
         org_X = X
         for i in range(self.l_n):
-
             X = self.down_gcns[i](A, X)
             adj_ms.append(A)
             down_outs.append(X)
@@ -89,12 +95,10 @@ class GraphUnet(nn.Module):
         X = self.bottom_gcn(A, X)
         for i in range(self.l_n):
             up_idx = self.l_n - i - 1
-
             A, idx = adj_ms[up_idx], indices_list[up_idx]
             A, X = self.unpools[i](A, X, idx)
             X = self.up_gcns[i](A, X)
             X = X.add(down_outs[up_idx])
         X = torch.cat([X, org_X], 1)
         X = self.end_gcn(A, X)
-
         return X, start_gcn_outs

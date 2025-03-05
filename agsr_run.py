@@ -147,7 +147,11 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = AGSRNet(ks, args).to(device=device)
+    model = AGSRNet(ks, args)
+    # Move the entire model to the device
+    model = model.to(device)
+    print(f"Using device: {device}")
+    print(model)
 
     train(model, X_train, y_train, args, device)
     test(model, X_val, y_val, args, device)
