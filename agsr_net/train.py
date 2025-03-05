@@ -27,15 +27,9 @@ def train(model, subjects_adj, subjects_labels, args, device):
                 optimizerD.zero_grad()
                 optimizerG.zero_grad()
 
-                # print("lr shape:", lr.shape)
-                # print("args.lr_dim:", args.lr_dim)
-                # print("args.hr_dim:", args.hr_dim)
-                # print("lr type:", lr.dtype)
-
-
                 hr = pad_HR_adj(hr, args.padding)
-                lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
-                padded_hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
+                lr = torch.from_numpy(lr).to(device)
+                padded_hr = torch.from_numpy(hr).to(device)
 
                 eig_val_hr, U_hr = torch.linalg.eigh(padded_hr, UPLO='U')
 
@@ -43,7 +37,7 @@ def train(model, subjects_adj, subjects_labels, args, device):
                     lr, args.lr_dim, args.hr_dim)
 
                 mse_loss = args.lmbda * criterion(net_outs, start_gcn_outs) + criterion(
-                    model.layer.weights, U_hr) + criterion(model_outputs, padded_hr)
+                    model.layer.weights.to(device), U_hr) + criterion(model_outputs, padded_hr)
 
                 error = criterion(model_outputs, padded_hr)
                 real_data = model_outputs.detach()
@@ -80,37 +74,21 @@ def test(model, test_adj, test_labels, args, device):
     test_error = []
     preds_list = []
 
-    # i = 0
-
     for lr, hr in zip(test_adj, test_labels):
         all_zeros_lr = not np.any(lr)
         all_zeros_hr = not np.any(hr)
         if all_zeros_lr == False and all_zeros_hr == False:
-            lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
+            lr = torch.from_numpy(lr).to(device)
             np.fill_diagonal(hr, 1)
             hr = pad_HR_adj(hr, args.padding)
-            hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
+            hr = torch.from_numpy(hr).to(device)
             preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
 
-            # if i == 0:
-            #     print("Hr", hr)
-            #     print("Preds  ", preds)
-            #     plt.imshow(hr, origin='lower',  extent=[
-            #         0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
-            #     plt.imshow(preds.detach(), origin='lower',
-            #                extent=[0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
-            #     plt.imshow(hr - preds.detach(), origin='lower',
-            #                extent=[0, 10000, 0, 10], aspect=1000)
-            #     plt.show(block=False)
-
-            preds_list.append(preds.flatten().detach().cpu().numpy())
+            preds_list.append(preds.detach().cpu().numpy().flatten())
             error = criterion(preds, hr)
-            g_t.append(hr.flatten())
+            g_t.append(hr.cpu().flatten())
             print(error.item())
             test_error.append(error.item())
-            # i += 1
 
     print("Test error MSE: ", np.mean(test_error))
     # preds_list = [val for sublist in preds_list for val in sublist]

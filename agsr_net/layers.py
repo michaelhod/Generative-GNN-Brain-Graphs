@@ -12,24 +12,23 @@ class GSRLayer(nn.Module):
     def __init__(self, hr_dim):
         super(GSRLayer, self).__init__()
 
-        self.weights = torch.from_numpy(
+        weights = torch.from_numpy(
             weight_variable_glorot(hr_dim)).type(torch.FloatTensor)
-        self.weights = torch.nn.Parameter(
-            data=self.weights, requires_grad=True)
+        self.weights = torch.nn.Parameter(data=weights, requires_grad=True)
 
     def forward(self, A, X):
         with torch.autograd.set_detect_anomaly(True):
-
+            device = A.device
             lr = A
             lr_dim = lr.shape[0]
             f = X
             eig_val_lr, U_lr = torch.linalg.eigh(lr, UPLO='U')
 
-            # U_lr = torch.abs(U_lr)
-            eye_mat = torch.eye(lr_dim).type(torch.FloatTensor)
+            eye_mat = torch.eye(lr_dim, device=device)
             s_d = torch.cat((eye_mat, eye_mat), 0)
 
-            a = torch.matmul(self.weights, s_d)
+            weights = self.weights.to(device)
+            a = torch.matmul(weights, s_d)
             b = torch.matmul(a, torch.t(U_lr))
             f_d = torch.matmul(b, f)
             f_d = torch.abs(f_d)

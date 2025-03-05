@@ -24,9 +24,9 @@ class AGSRNet(nn.Module):
 
     def forward(self, lr, lr_dim, hr_dim):
         with torch.autograd.set_detect_anomaly(True):
-
-            I = torch.eye(self.lr_dim, device='cuda')
-            A = normalize_adj_torch(lr).type(torch.FloatTensor)
+            device = lr.device
+            I = torch.eye(self.lr_dim, device=device)
+            A = normalize_adj_torch(lr)  # Remove .type(torch.FloatTensor) since it moves to CPU
 
             self.net_outs, self.start_gcn_outs = self.net(A, I)
 
@@ -79,7 +79,8 @@ class Discriminator(nn.Module):
 
 
 def gaussian_noise_layer(input_layer, args):
-    z = torch.empty_like(input_layer)
+    device = input_layer.device
+    z = torch.empty_like(input_layer, device=device)
     noise = z.normal_(mean=args.mean_gaussian, std=args.std_gaussian)
     z = torch.abs(input_layer + noise)
 
