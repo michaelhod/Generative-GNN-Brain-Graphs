@@ -10,6 +10,7 @@ class AGSRNet(nn.Module):
 
     def __init__(self, ks, args):
         super(AGSRNet, self).__init__()
+    
 
         self.lr_dim = args.lr_dim
         self.hr_dim = args.hr_dim
@@ -24,7 +25,7 @@ class AGSRNet(nn.Module):
     def forward(self, lr, lr_dim, hr_dim):
         with torch.autograd.set_detect_anomaly(True):
 
-            I = torch.eye(self.lr_dim).type(torch.FloatTensor)
+            I = torch.eye(self.lr_dim, device='cuda')
             A = normalize_adj_torch(lr).type(torch.FloatTensor)
 
             self.net_outs, self.start_gcn_outs = self.net(A, I)
