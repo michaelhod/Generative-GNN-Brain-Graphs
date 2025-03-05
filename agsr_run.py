@@ -141,12 +141,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 
 #     print(type(X_train))
 
-    X_train = torch.tensor(X_train)
-    y_train = torch.tensor(y_train)
 
-    # Before testing
-    X_val = torch.tensor(X_val)
-    y_val = torch.tensor(y_val)
     print(f"  Training samples: {X_train.shape[0]}")
     print(f"  Validation samples: {X_val.shape[0]}")
 
