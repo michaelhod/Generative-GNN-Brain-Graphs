@@ -108,7 +108,7 @@ def test(model, test_adj, test_labels, args):
                 #                extent=[0, 10000, 0, 10], aspect=1000)
                 #     plt.show(block=False)
 
-                preds_list.append(preds.flatten().detach().numpy())
+                preds_list.append(preds.detach().numpy())
                 error = criterion(preds, hr)
                 g_t.append(hr.flatten())
                 print(error.item())
