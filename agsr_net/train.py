@@ -9,11 +9,10 @@ import torch.optim as optim
 criterion = nn.MSELoss()
 
 
-def train(model, subjects_adj, subjects_labels, args, device):
+def train(model, subjects_adj, subjects_labels, args):
 
     bce_loss = nn.BCELoss()
     netD = Discriminator(args)
-    netD = netD.to(device=device)
     print(netD)
     optimizerG = optim.Adam(model.parameters(), lr=args.lr)
     optimizerD = optim.Adam(netD.parameters(), lr=args.lr)
@@ -34,8 +33,8 @@ def train(model, subjects_adj, subjects_labels, args, device):
 
 
                 hr = pad_HR_adj(hr, args.padding)
-                lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
-                padded_hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
+                lr = torch.from_numpy(lr).type(torch.FloatTensor)
+                padded_hr = torch.from_numpy(hr).type(torch.FloatTensor)
 
                 eig_val_hr, U_hr = torch.linalg.eigh(padded_hr, UPLO='U')
 
@@ -52,8 +51,8 @@ def train(model, subjects_adj, subjects_labels, args, device):
                 d_real = netD(real_data)
                 d_fake = netD(fake_data)
 
-                dc_loss_real = bce_loss(d_real, torch.ones(args.hr_dim, 1).to(device))
-                dc_loss_fake = bce_loss(d_fake, torch.zeros(args.hr_dim, 1).to(device))
+                dc_loss_real = bce_loss(d_real, torch.ones(args.hr_dim, 1))
+                dc_loss_fake = bce_loss(d_fake, torch.zeros(args.hr_dim, 1))
                 dc_loss = dc_loss_real + dc_loss_fake
 
                 dc_loss.backward()
@@ -61,7 +60,7 @@ def train(model, subjects_adj, subjects_labels, args, device):
 
                 d_fake = netD(gaussian_noise_layer(padded_hr, args))
 
-                gen_loss = bce_loss(d_fake, torch.ones(args.hr_dim, 1).to(device))
+                gen_loss = bce_loss(d_fake, torch.ones(args.hr_dim, 1))
                 generator_loss = gen_loss + mse_loss
                 generator_loss.backward()
                 optimizerG.step()
@@ -74,7 +73,7 @@ def train(model, subjects_adj, subjects_labels, args, device):
             all_epochs_loss.append(np.mean(epoch_loss))
 
 
-def test(model, test_adj, test_labels, args, device):
+def test(model, test_adj, test_labels, args):
 
     g_t = []
     test_error = []
@@ -86,10 +85,10 @@ def test(model, test_adj, test_labels, args, device):
         all_zeros_lr = not np.any(lr)
         all_zeros_hr = not np.any(hr)
         if all_zeros_lr == False and all_zeros_hr == False:
-            lr = torch.from_numpy(lr).type(torch.FloatTensor).to(device)
+            lr = torch.from_numpy(lr).type(torch.FloatTensor)
             np.fill_diagonal(hr, 1)
             hr = pad_HR_adj(hr, args.padding)
-            hr = torch.from_numpy(hr).type(torch.FloatTensor).to(device)
+            hr = torch.from_numpy(hr).type(torch.FloatTensor)
             preds, a, b, c = model(lr, args.lr_dim, args.hr_dim)
 
             # if i == 0:
@@ -105,7 +104,7 @@ def test(model, test_adj, test_labels, args, device):
             #                extent=[0, 10000, 0, 10], aspect=1000)
             #     plt.show(block=False)
 
-            preds_list.append(preds.flatten().detach().cpu().numpy())
+            preds_list.append(preds.flatten().detach().numpy())
             error = criterion(preds, hr)
             g_t.append(hr.flatten())
             print(error.item())
