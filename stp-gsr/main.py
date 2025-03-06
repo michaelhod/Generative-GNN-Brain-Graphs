@@ -64,7 +64,7 @@ def main(config):
                                       train_output['model'], 
                                       source_data_val, 
                                       target_data_val, 
-                                      train_output['critereon'])
+                                      train_output['criterion'])
 
         # Final evaluation loss for this fold
         print(f"Final Validation Loss (Target): {eval_loss}")
@@ -77,7 +77,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target)
+        evaluate_matrices(predicted, target, all_metrics=True)
 
 
         # Plot predictions for a random sample
