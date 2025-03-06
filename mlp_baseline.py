@@ -88,6 +88,39 @@ def train_model(model, X_train, y_train, X_val, y_val):
 
     return model, metrics
 
+def train_all_data(model, X_train, y_train):
+    learning_rate = 0.001
+    num_epochs = 50
+    batch_size = 64
+
+    X_train_tensor = torch.FloatTensor(X_train.values)
+    y_train_tensor = torch.FloatTensor(y_train.values)
+
+    train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+        
+        for batch_X, batch_y in train_loader:
+            outputs = model(batch_X)
+            loss = criterion(outputs, batch_y)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+        
+        epoch_loss = running_loss / len(train_loader)
+        print(f'  Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}')
+    
+    return model
+
 
 if __name__ == "__main__":
     LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
@@ -134,3 +167,15 @@ if __name__ == "__main__":
 
         print(f"  Validation Loss: {metrics['val_loss']:.4f}")
     print(fold_metrics)
+
+    # # Train on all data
+    # model = NaiveMLP(
+    #     input_dim=12720,
+    #     hidden_dims=[4096, 2048, 1024, 512],
+    #     output_dim=35778,
+    #     dropout_rate=0.3
+    # )
+    # model = train_all_data(model, X, y)
+    # # Save model
+    # torch.save(model.state_dict(), "model.pth")
+    # print("Model saved")
