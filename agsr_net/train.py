@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from preprocessing import *
 from model import *
 import torch.optim as optim
-from evaluation import evaluate_matrices
 
 
 
@@ -122,13 +121,9 @@ def test(model, test_adj, test_labels, args):
     print(f"Ground truth shape: {ground_truth.shape}")
     #add shape check
 
-    metrics = evaluate_matrices(preds_list, ground_truth)
     
-    print("=== Evaluation Results ===")
-    for metric, value in metrics.items():
-        print(f"{metric}: {value}")
     
-    return metrics
+    return preds_list, ground_truth
 
             # i += 1
 

@@ -69,6 +69,7 @@ sys.path.append("agsr_net")
 from agsr_net import preprocessing
 from agsr_net.model import AGSRNet
 from agsr_net.train import train, test
+from evaluation import evaluate_matrices
 import argparse
 from sklearn.model_selection import KFold
 from MatrixVectorizer import MatrixVectorizer
@@ -152,7 +153,13 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     
 
     train(model, X_train, y_train, args)
-    metrics = test(model, X_val, y_val, args)
+    preds_list, ground_truth = test(model, X_val, y_val, args)
+
+    metrics = evaluate_matrices(preds_list, ground_truth)
+    
+    print("=== Evaluation Results ===")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value}")
 
     print(f"MAE: {metrics['MAE']:.6f}")
 
