@@ -129,7 +129,8 @@ X = v_lr_train
 y = v_hr_train
 
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+best_model = None
+best_score = float('inf')
 fold_metrics = []
 for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     print(f"Fold {fold + 1}/{k_folds}")
@@ -157,15 +158,36 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
 
     metrics = evaluate_matrices(preds_list, ground_truth)
     
-    print("=== Evaluation Results ===")
+    fold_metrics.append(metrics)
+    
+    print("=== Evaluation Results for Fold {} ===".format(fold + 1))
     for metric, value in metrics.items():
         print(f"{metric}: {value}")
 
     print(f"MAE: {metrics['MAE']:.6f}")
+    
+    # Update best model if this fold is better
+    
+    print(f"MAE: {metrics['MAE']:.6f}")
 
+    if metrics['MAE'] < best_score:
+        best_score = metrics['MAE']
+        best_model = model.state_dict()
 
+avg_metrics = {}
+for metric in fold_metrics[0].keys():
+    avg_metrics[metric] = sum(fold[metric] for fold in fold_metrics) / len(fold_metrics)
 
-#     evaluation
+print("\n=== Average Metrics Across All Folds ===")
+for metric, value in avg_metrics.items():
+    print(f"Average {metric}: {value:.6f}")
+
+print(f"\nAverage MAE: {avg_metrics['MAE']:.6f}")
+
+# Save best model after all folds
+if best_model is not None:
+    torch.save(best_model, 'best_model.pt')
+    print(f"\nBest model saved with MAE: {best_score:.6f}")
 
 
     # print(X_train.shape)
