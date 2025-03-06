@@ -152,11 +152,12 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     model = AGSRNet(ks, args)
 
     
+    all_metrics = True
 
     train(model, X_train, y_train, args)
     preds_list, ground_truth = test(model, X_val, y_val, args)
 
-    metrics = evaluate_matrices(preds_list, ground_truth)
+    metrics = evaluate_matrices(preds_list, ground_truth, all_metrics=all_metrics)
     
     fold_metrics.append(metrics)
     
@@ -164,7 +165,15 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     for metric, value in metrics.items():
         print(f"{metric}: {value}")
 
-    print(f"MAE: {metrics['MAE']:.6f}")
+    if not all_metrics:
+        print(f"MAE: {metrics['MAE']:.6f}")
+    else:
+        print(f"MAE: {metrics['MAE']:.6f}")
+        print(f"PCC: {metrics['PCC']:.6f}")
+        print(f"Jensen-Shannon Distance: {metrics['JS_Distance']:.6f}")
+        print(f"Average MAE betweenness centrality: {metrics['MAE_BC']:.6f}")
+        print(f"Average MAE eigenvector centrality: {metrics['MAE_EC']:.6f}")
+        print(f"Average MAE PageRank centrality: {metrics['MAE_PC']:.6f}")
     
     # Update best model if this fold is better
     
