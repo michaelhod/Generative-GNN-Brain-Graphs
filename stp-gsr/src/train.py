@@ -26,7 +26,7 @@ def load_model(config):
         raise ValueError(f"Unsupported model type: {config.model.name}")
     
 
-def eval(config, model, source_data, target_data, critereon):
+def eval(config, model, source_data, target_data, criterion):
     n_target_nodes = config.dataset.n_target_nodes  # n_t
     
     model.eval()
@@ -50,7 +50,7 @@ def eval(config, model, source_data, target_data, critereon):
 
             eval_output.append(pred_m)
 
-            t_loss = critereon(model_pred, model_target)
+            t_loss = criterion(model_pred, model_target)
 
             eval_loss.append(t_loss) 
 
@@ -74,7 +74,7 @@ def train(config,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.experiment.lr)
-    critereon = torch.nn.L1Loss()
+    criterion = torch.nn.L1Loss()
 
     train_losses = []
     val_losses = []
@@ -108,7 +108,7 @@ def train(config,
                 else:
                     model_pred, model_target = model(source_g, target_m)
 
-                loss = critereon(model_pred, model_target)
+                loss = criterion(model_pred, model_target)
                 loss.backward()
 
                 epoch_loss += loss.item()
@@ -150,7 +150,7 @@ def train(config,
 
             # Log validation loss
             if config.experiment.log_val_loss:
-                _, val_loss = eval(config, model, source_data_val, target_data_val, critereon)
+                _, val_loss = eval(config, model, source_data_val, target_data_val, criterion)
                 print(f"Epoch {epoch+1}/{config.experiment.n_epochs}, Val Loss: {val_loss}")
                 val_losses.append(val_loss)
 
@@ -177,5 +177,5 @@ def train(config,
 
     return {
         'model': model,
-        'critereon': critereon,
+        'criterion': criterion,
     }
