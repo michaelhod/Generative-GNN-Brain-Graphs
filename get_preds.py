@@ -60,8 +60,6 @@ with torch.no_grad():
             lr = torch.from_numpy(lr).type(torch.FloatTensor)
             
             final_preds, _, _, _ = model(lr, lr_dim, hr_dim)
-            final_preds = np.array(final_preds)
-            
             numpy_preds = final_preds.detach().numpy()
             unpadded_preds = unpad(numpy_preds, args.padding)
             preds_list.append(unpadded_preds)
