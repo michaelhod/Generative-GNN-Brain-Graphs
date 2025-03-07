@@ -4,6 +4,8 @@ name: stp_gsr
 target_edge_initializer:
   num_heads: 4                      # assert num_heads % n_target_nodes == 0
   edge_dim: 1
+  hidden_dim: 256
+  num_layers: 2
   dropout: 0.2
   beta: False
 
@@ -11,8 +13,6 @@ target_edge_initializer:
 dual_learner:
   in_dim: 1                   
   out_dim: 1
-  hidden_dim: 32
-  num_layers: 2
   num_heads: 1                   
   dropout: 0.2
   beta: False

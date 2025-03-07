@@ -8,23 +8,63 @@ from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_ma
     
 class TargetEdgeInitializer(nn.Module):
     """TransformerConv based taregt edge initialization model"""
-    def __init__(self, n_source_nodes, n_target_nodes, num_heads=4, edge_dim=1, 
+    def __init__(self, n_source_nodes, n_target_nodes, num_heads=4, hidden_dim=64, num_layers=2, edge_dim=1, 
                  dropout=0.2, beta=False):
         super().__init__()
         assert n_target_nodes % num_heads == 0
 
-        self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
+        self.num_layers = num_layers
+        
+        self.conv1 = TransformerConv(n_source_nodes, hidden_dim // num_heads,
+                                        heads=num_heads, edge_dim=edge_dim,
+                                        dropout=dropout, beta=beta)
+        self.bn1 = GraphNorm(hidden_dim)
+
+        self.conv2 = TransformerConv(hidden_dim, n_target_nodes // num_heads,
+                                        heads=num_heads, edge_dim=edge_dim,
+                                        dropout=dropout, beta=beta)
+        self.bn2 = GraphNorm(n_target_nodes)
+
+
+        self.convs = nn.ModuleList()
+        self.bns = nn.ModuleList()
+
+        if num_layers == 1:
+            # If only one layer, map directly from in_dim to out_dim
+            self.convs.append(TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
-                                     dropout=dropout, beta=beta)
-        self.bn1 = GraphNorm(n_target_nodes)
+                                     dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(n_target_nodes))
+        else:
+            self.convs.append(TransformerConv(n_source_nodes, hidden_dim // num_heads, 
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(hidden_dim))
+
+            for _ in range(num_layers - 2):
+                self.convs.append(TransformerConv(hidden_dim, hidden_dim // num_heads, 
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta))
+                self.bns.append(GraphNorm(hidden_dim))
+
+            self.convs.append(TransformerConv(hidden_dim, n_target_nodes // num_heads, heads=num_heads,
+                                              dropout=dropout, edge_dim=edge_dim, beta=beta))
+            self.bns.append(GraphNorm(n_target_nodes)) 
+
+        # self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
+        #                              heads=num_heads, edge_dim=edge_dim,
+        #                              dropout=dropout, beta=beta)
+        # self.bn1 = GraphNorm(n_target_nodes)
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
         # Update node embeddings for the source graph
-        x = self.conv1(x, edge_index, edge_attr)
-        x = self.bn1(x)
-        x = F.relu(x)
+
+        for i in range(self.num_layers):
+            x = self.convs[i](x, edge_index, edge_attr)
+            x = self.bns[i](x)
+            x = F.relu(x)
 
         # Super-resolve source graph using matrix multiplication
         xt = x.T @ x    # xt will be treated as the adjacency matrix of the target graph
@@ -43,52 +83,24 @@ class TargetEdgeInitializer(nn.Module):
 
 class DualGraphLearner(nn.Module):
     """Update node features of the dual graph"""
-    def __init__(self, in_dim, out_dim=1, num_heads=1, hidden_dim=64, num_layers=2,
+    def __init__(self, in_dim, out_dim=1, num_heads=1,
                  dropout=0.2, beta=False):
         super().__init__()
 
         # Here, we override num_heads to be 1 since we output scalar primal edge weights
         # In future work, we can experiment with multiple heads
-        self.num_layers = num_layers
 
-        self.convs = nn.ModuleList()
-        self.bns = nn.ModuleList()
-
-        if num_layers == 1:
-            # If only one layer, map directly from in_dim to out_dim
-            self.convs.append(TransformerConv(in_dim, out_dim, heads=num_heads,
-                                              dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(out_dim))
-        else:
-            self.convs.append(TransformerConv(in_dim, hidden_dim, heads=num_heads,
-                                              dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(hidden_dim))
-
-            for _ in range(num_layers - 2):
-                self.convs.append(TransformerConv(hidden_dim, hidden_dim, heads=num_heads,
-                                                  dropout=dropout, beta=beta))
-                self.bns.append(GraphNorm(hidden_dim))
-
-            self.convs.append(TransformerConv(hidden_dim, out_dim, heads=num_heads,
-                                              dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(out_dim)) 
-
-        # self.conv1 = TransformerConv(in_dim, out_dim, 
-        #                              heads=num_heads,
-        #                              dropout=dropout, beta=beta)
-        # self.bn1 = GraphNorm(out_dim)
+        self.conv1 = TransformerConv(in_dim, out_dim, 
+                                     heads=num_heads,
+                                     dropout=dropout, beta=beta)
+        self.bn1 = GraphNorm(out_dim)
 
     def forward(self, x, edge_index):
         # Update embeddings for the dual nodes/ primal edges 
-        # x = self.conv1(x, edge_index)
-        # x = self.bn1(x)
-        # xt = F.relu(x)
-        xt = x
-        for i in range(self.num_layers):
-            xt = self.convs[i](xt, edge_index)
-            xt = self.bns[i](xt)
-            xt = F.relu(xt)
-
+        x = self.conv1(x, edge_index)
+        x = self.bn1(x)
+        xt = F.relu(x)
+        
         # Normalize values to be between [0, 1]
         xt_min = torch.min(xt)
         xt_max = torch.max(xt)
@@ -107,6 +119,8 @@ class STPGSR(nn.Module):
                             n_source_nodes,
                             n_target_nodes,
                             num_heads=config.model.target_edge_initializer.num_heads,
+                            hidden_dim=config.model.target_edge_initializer.hidden_dim,
+                            num_layers=config.model.target_edge_initializer.num_layers,
                             edge_dim=config.model.target_edge_initializer.edge_dim,
                             dropout=config.model.target_edge_initializer.dropout,
                             beta=config.model.target_edge_initializer.beta
@@ -115,8 +129,6 @@ class STPGSR(nn.Module):
                             in_dim=config.model.dual_learner.in_dim,
                             out_dim=config.model.dual_learner.out_dim,
                             num_heads=config.model.dual_learner.num_heads,
-                            hidden_dim=config.model.dual_learner.hidden_dim,
-                            num_layers=config.model.dual_learner.num_layers,
                             dropout=config.model.dual_learner.dropout,
                             beta=config.model.dual_learner.beta
         )
