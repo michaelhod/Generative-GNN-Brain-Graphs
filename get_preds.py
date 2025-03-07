@@ -9,10 +9,29 @@ from MatrixVectorizer import MatrixVectorizer
 
 
 lr_dim, hr_dim = 160, 268
+class Args:
+    def __init__(self):
+        self.epochs = 200  
+        self.lr = 0.0001   
+        self.lmbda = 0.1 
+        self.lr_dim = 160     
+        self.hr_dim = 320  
+        self.hidden_dim = 320    
+        self.padding = 26 
+        self.mean_dense = 0.0    
+        self.std_dense = 0.01      
+        self.mean_gaussian = 0.0  
+        self.std_gaussian = 0.1
+
+ks = [0.9, 0.7, 0.6, 0.5]
+args = Args() 
+
+model = AGSRNet(ks, args)
 
 try:
-    model = torch.load('best_model.pt')
-    model.eval() 
+    state_dict = torch.load('best_model.pt')
+    model.load_state_dict(state_dict)
+    model.eval()  
     print("Best model loaded successfully")
 except Exception as e:
     print(f"Error loading model: {e}")
