@@ -68,10 +68,10 @@ with torch.no_grad():
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
 
-preds_list = np.array(preds_list)
+preds_list = np.array(preds_list) 
 melted_preds = preds_list.flatten()
 
-print(f"Total predictions: {len(melted_preds)}")
+print(f"Total-predictions: {len(melted_preds)}")
 
 submission_df = pd.DataFrame({
     'ID': range(1, len(melted_preds) + 1),
