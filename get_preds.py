@@ -65,8 +65,9 @@ with torch.no_grad():
 
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
-preds_list = unpad(preds_list, args.padding)
+
 preds_list = np.array(preds_list)
+preds_list = unpad(preds_list, args.padding)
 melted_preds = preds_list.flatten()
 
 print(f"Total predictions: {len(melted_preds)}")
