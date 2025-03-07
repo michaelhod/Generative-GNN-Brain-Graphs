@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from agsr_net.layers import *
 from agsr_net.model import AGSRNet  
+from agsr_net.preprocessing import unpad
 from MatrixVectorizer import MatrixVectorizer
 
 
@@ -60,7 +61,8 @@ with torch.no_grad():
             
             final_preds, _, _, _ = model(lr, lr_dim, hr_dim)
             preds_list.append(final_preds.detach().numpy())
-        
+            preds_list = unpad(preds_list, args.padding)
+
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
 
