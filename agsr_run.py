@@ -222,7 +222,7 @@ for lr in v_lr_test:
     if all_zeros_lr == False:
         lr = torch.from_numpy(lr).type(torch.FloatTensor)
     
-        final_preds, gold = model(lr, hr_dim, hr_dim)
+        final_preds, _, _, _ = model(lr, hr_dim, hr_dim)
         preds_list.append(final_preds.detach().numpy())
     
 preds_list = np.array(preds_list)
