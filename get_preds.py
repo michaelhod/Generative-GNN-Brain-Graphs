@@ -61,11 +61,11 @@ with torch.no_grad():
             
             final_preds, _, _, _ = model(lr, lr_dim, hr_dim)
             preds_list.append(final_preds.detach().numpy())
-            preds_list = unpad(preds_list, args.padding)
+            
 
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
-
+preds_list = unpad(preds_list, args.padding)
 preds_list = np.array(preds_list)
 melted_preds = preds_list.flatten()
 
