@@ -132,6 +132,7 @@ y = v_hr_train
 best_model = None
 best_score = float('inf')
 fold_metrics = []
+model = AGSRNet(ks, args)
 for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
     print(f"Fold {fold + 1}/{k_folds}")
 
@@ -183,6 +184,8 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
         best_score = metrics['MAE']
         best_model = model.state_dict()
 
+    break
+
 avg_metrics = {}
 for metric in fold_metrics[0].keys():
     avg_metrics[metric] = sum(fold[metric] for fold in fold_metrics) / len(fold_metrics)
@@ -210,8 +213,29 @@ if best_model is not None:
 
     # model = AGSRNet(ks, args)
 
-  
+lr_dim, hr_dim = 160, 268
+
+
+preds_list = []
+for lr in v_lr_test:
+    all_zeros_lr = not np.any(lr)
+    if all_zeros_lr == False:
+        lr = torch.from_numpy(lr).type(torch.FloatTensor)
     
+        final_preds, gold = model(lr, hr_dim, hr_dim)
+        preds_list.append(final_preds.detach().numpy())
+    
+preds_list = np.array(preds_list)
+melted_preds = preds_list.flatten()
+
+submission_df = pd.DataFrame({
+    'ID': range(1, len(melted_preds) + 1),  # IDs from 1 to 4,007,136
+    'Predicted': melted_preds
+})
+
+submission_df.to_csv('submission.csv', index=False)
+
+
 
     # model, metrics = train.train(model, X_train, y_train, X_val, y_val)
     # fold_metrics.append(metrics)
