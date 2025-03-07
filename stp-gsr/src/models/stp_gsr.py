@@ -43,22 +43,46 @@ class TargetEdgeInitializer(nn.Module):
 
 class DualGraphLearner(nn.Module):
     """Update node features of the dual graph"""
-    def __init__(self, in_dim, out_dim=1, num_heads=1, 
+    def __init__(self, in_dim, out_dim=1, num_heads=1, hidden_dim=64, num_layers=2,
                  dropout=0.2, beta=False):
         super().__init__()
 
         # Here, we override num_heads to be 1 since we output scalar primal edge weights
         # In future work, we can experiment with multiple heads
-        self.conv1 = TransformerConv(in_dim, out_dim, 
-                                     heads=num_heads,
-                                     dropout=dropout, beta=beta)
-        self.bn1 = GraphNorm(out_dim)
+        self.num_layers = num_layers
+
+        self.convs = nn.ModuleList()
+        self.bns = nn.ModuleList()
+
+        self.convs.append(TransformerConv(in_dim, hidden_dim, heads=num_heads,
+                                          dropout=dropout, beta=beta))
+        self.bns.append(GraphNorm(hidden_dim))
+
+        for _ in range(num_layers - 2):
+            self.convs.append(TransformerConv(hidden_dim, hidden_dim, heads=num_heads,
+                                              dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(hidden_dim))
+        
+        if num_layers > 1:
+            self.convs.append(TransformerConv(hidden_dim, out_dim, heads=num_heads,
+                                              dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(out_dim))
+
+        # self.conv1 = TransformerConv(in_dim, out_dim, 
+        #                              heads=num_heads,
+        #                              dropout=dropout, beta=beta)
+        # self.bn1 = GraphNorm(out_dim)
 
     def forward(self, x, edge_index):
-        # Update embeddings for the dual nodes/ primal edges
-        x = self.conv1(x, edge_index)
-        x = self.bn1(x)
-        xt = F.relu(x)
+        # Update embeddings for the dual nodes/ primal edges 
+        # x = self.conv1(x, edge_index)
+        # x = self.bn1(x)
+        # xt = F.relu(x)
+
+        for i in range(self.num_layers):
+            x = self.convs[i](x, edge_index)
+            x = self.bns[i](x)
+            x = F.relu(x)
 
         # Normalize values to be between [0, 1]
         xt_min = torch.min(xt)
@@ -86,10 +110,14 @@ class STPGSR(nn.Module):
                             in_dim=config.model.dual_learner.in_dim,
                             out_dim=config.model.dual_learner.out_dim,
                             num_heads=config.model.dual_learner.num_heads,
+                            hidden_dim=config.model.dual_learner.hidden_dim,
+                            num_layers=config.model.dual_learner.num_layers,
                             dropout=config.model.dual_learner.dropout,
                             beta=config.model.dual_learner.beta
         )
-
+        print(self.target_edge_initializer)
+        print("-"*50)
+        print(self.dual_learner)
         # Create dual graph domain: Assume a fully connected simple graph
         fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
         self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
