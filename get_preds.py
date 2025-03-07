@@ -60,14 +60,17 @@ with torch.no_grad():
             lr = torch.from_numpy(lr).type(torch.FloatTensor)
             
             final_preds, _, _, _ = model(lr, lr_dim, hr_dim)
-            preds_list.append(final_preds.detach().numpy())
+            final_preds = np.array(final_preds)
+            
+            numpy_preds = final_preds.detach().numpy()
+            unpadded_preds = unpad(numpy_preds, args.padding)
+            preds_list.append(unpadded_preds)
             
 
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
 
 preds_list = np.array(preds_list)
-preds_list = unpad(preds_list, args.padding)
 melted_preds = preds_list.flatten()
 
 print(f"Total predictions: {len(melted_preds)}")
