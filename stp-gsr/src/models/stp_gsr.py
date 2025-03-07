@@ -54,19 +54,24 @@ class DualGraphLearner(nn.Module):
         self.convs = nn.ModuleList()
         self.bns = nn.ModuleList()
 
-        self.convs.append(TransformerConv(in_dim, hidden_dim, heads=num_heads,
-                                          dropout=dropout, beta=beta))
-        self.bns.append(GraphNorm(hidden_dim))
-
-        for _ in range(num_layers - 2):
-            self.convs.append(TransformerConv(hidden_dim, hidden_dim, heads=num_heads,
-                                              dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(hidden_dim))
-        
-        if num_layers > 1:
-            self.convs.append(TransformerConv(hidden_dim, out_dim, heads=num_heads,
+        if num_layers == 1:
+            # If only one layer, map directly from in_dim to out_dim
+            self.convs.append(TransformerConv(in_dim, out_dim, heads=num_heads,
                                               dropout=dropout, beta=beta))
             self.bns.append(GraphNorm(out_dim))
+        else:
+            self.convs.append(TransformerConv(in_dim, hidden_dim, heads=num_heads,
+                                              dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(hidden_dim))
+
+            for _ in range(num_layers - 2):
+                self.convs.append(TransformerConv(hidden_dim, hidden_dim, heads=num_heads,
+                                                  dropout=dropout, beta=beta))
+                self.bns.append(GraphNorm(hidden_dim))
+
+            self.convs.append(TransformerConv(hidden_dim, out_dim, heads=num_heads,
+                                              dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(out_dim)) 
 
         # self.conv1 = TransformerConv(in_dim, out_dim, 
         #                              heads=num_heads,
@@ -78,11 +83,11 @@ class DualGraphLearner(nn.Module):
         # x = self.conv1(x, edge_index)
         # x = self.bn1(x)
         # xt = F.relu(x)
-
+        xt = x
         for i in range(self.num_layers):
-            x = self.convs[i](x, edge_index)
-            x = self.bns[i](x)
-            x = F.relu(x)
+            xt = self.convs[i](xt, edge_index)
+            xt = self.bns[i](xt)
+            xt = F.relu(xt)
 
         # Normalize values to be between [0, 1]
         xt_min = torch.min(xt)
