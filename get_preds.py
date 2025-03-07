@@ -6,7 +6,7 @@ import pandas as pd
 from agsr_net.layers import *
 from agsr_net.model import AGSRNet  
 from agsr_net.preprocessing import unpad
-from MatrixVectorizer import MatrixVectorizer, Vector
+from MatrixVectorizer import MatrixVectorizer
 
 
 lr_dim, hr_dim = 160, 268
