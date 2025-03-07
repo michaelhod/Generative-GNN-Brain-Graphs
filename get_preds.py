@@ -1,8 +1,12 @@
+import sys
+sys.path.append("agsr_net") 
 import torch
 import numpy as np
 import pandas as pd
+from agsr_net.layers import *
 from agsr_net.model import AGSRNet  
 from MatrixVectorizer import MatrixVectorizer
+
 
 lr_dim, hr_dim = 160, 268
 
