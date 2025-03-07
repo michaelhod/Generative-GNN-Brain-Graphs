@@ -6,7 +6,7 @@ import pandas as pd
 from agsr_net.layers import *
 from agsr_net.model import AGSRNet  
 from agsr_net.preprocessing import unpad
-from MatrixVectorizer import MatrixVectorizer
+from MatrixVectorizer import MatrixVectorizer, Vector
 
 
 lr_dim, hr_dim = 160, 268
@@ -68,8 +68,11 @@ with torch.no_grad():
         if (i+1) % 10 == 0:
             print(f"Processed {i+1}/{len(v_lr_test)} samples")
 
-preds_list = np.array(preds_list) 
-melted_preds = preds_list.flatten()
+vectorized_preds = np.zeros((len(preds_list), 35778))
+for i, pred in enumerate(preds_list):
+    vectorized_preds[i] = mv.vectorize(pred, include_diagonal=False)
+
+melted_preds = vectorized_preds.flatten()
 
 print(f"Total-predictions: {len(melted_preds)}")
 
