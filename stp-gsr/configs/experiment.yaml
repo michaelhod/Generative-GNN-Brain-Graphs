@@ -18,3 +18,7 @@ experiment:
     shuffle: True
     random_state: 42
 
+  discriminator:
+    hidden_dim: 512
+
+

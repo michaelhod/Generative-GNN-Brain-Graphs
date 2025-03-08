@@ -110,4 +110,4 @@ class STPGSR(nn.Module):
         # Convert target matrix into edge feature matrix
         dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
-        return dual_pred_x, dual_target_x
+        return dual_pred_x
