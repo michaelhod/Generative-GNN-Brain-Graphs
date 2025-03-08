@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -66,7 +70,25 @@ class TargetEdgeInitializer(nn.Module):
             x = self.bns[i](x)
             x = F.relu(x)
 
-        # Super-resolve source graph using matrix multiplication
+        # Here are some graph-based alternatives for super-resolution:
+        
+        # Option 1: Graph convolution approach
+        # xt = self.graph_conv(x, edge_index)
+        
+        # Option 2: Attention-based approach 
+        # scores = torch.matmul(x, x.transpose(-2, -1)) / math.sqrt(x.size(-1))
+        # attention = F.softmax(scores, dim=-1)
+        # xt = torch.matmul(attention, x)
+        
+        # Option 3: Message passing approach
+        # messages = torch.index_select(x, 0, edge_index[0])
+        # xt = scatter_mean(messages, edge_index[1], dim=0)
+        
+        # Option 4: Graph pooling approach
+        # pool = TopKPooling(x.size(-1), ratio=n_target_nodes/n_source_nodes) 
+        # xt, _, _, _ = pool(x, edge_index)
+        
+        # Currently using matrix multiplication approach:
         xt = x.T @ x    # xt will be treated as the adjacency matrix of the target graph
 
         # Normalize values to be between [0, 1]
