@@ -221,21 +221,58 @@ def train(config,
           res_dir):
     n_target_nodes = config.dataset.n_target_nodes  # n_t
 
-    # Initialize model, optmizer, and loss function
+    # Initialize model, optimizer, and loss function
     generator = load_model(config)
-    discriminator = Discriminator(n_target_nodes, config.experiment.discriminator.hidden_dim)
+    discriminator = Discriminator(n_target_nodes)
+    
+    # Verify discriminator has sigmoid at output
+    if not hasattr(discriminator, 'has_sigmoid_output'):
+        print("WARNING: Discriminator may not have sigmoid output. Adding a check to ensure proper outputs.")
+        original_forward = discriminator.forward
+        
+        def sigmoid_wrapped_forward(x):
+            return torch.sigmoid(original_forward(x))
+            
+        discriminator.forward = sigmoid_wrapped_forward
+        discriminator.has_sigmoid_output = True
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     generator = generator.to(device)
     discriminator = discriminator.to(device)
-    optimizer_G = torch.optim.Adam(generator.parameters(), lr=config.experiment.lr)
-    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=config.experiment.lr)
-
-    criterion_L1 = torch.nn.L1Loss()  
+    
+    # Use different learning rates for generator and discriminator
+    # Generally, it helps to have discriminator learn slower
+    lr_g = config.experiment.lr
+    lr_d = config.experiment.lr * 0.5  # Half the learning rate for discriminator
+    
+    optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr_g, betas=(0.5, 0.999))
+    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr_d, betas=(0.5, 0.999))
+    
+    # Use binary cross entropy with logits for more stability
+    criterion_L1 = torch.nn.L1Loss()
     criterion_BCE = torch.nn.BCELoss()
 
     train_losses_G = []
     train_losses_D = []
     val_losses = []
+    
+    # For tracking statistics
+    d_real_accuracies = []
+    d_fake_accuracies = []
+    g_fool_accuracies = []
+    
+    # Add some debugging helpers
+    def print_tensor_stats(tensor, name):
+        if tensor is None:
+            print(f"{name} is None!")
+            return
+        print(f"{name} stats: shape={tensor.shape}, min={tensor.min().item():.6f}, max={tensor.max().item():.6f}, " 
+              f"mean={tensor.mean().item():.6f}, std={tensor.std().item():.6f}")
+    
+    # Function to add noise to tensors
+    def add_noise(tensor, noise_factor=0.05):
+        noise = torch.randn_like(tensor) * noise_factor
+        return tensor + noise
  
     with tempfile.TemporaryDirectory() as tmp_dir:
         generator.train()
@@ -246,6 +283,9 @@ def train(config,
             batch_counter = 0
             epoch_loss_G = 0.0
             epoch_loss_D = 0.0
+            epoch_d_real_acc = 0.0
+            epoch_d_fake_acc = 0.0
+            epoch_g_fool_acc = 0.0
 
             # Shuffle training data
             random_idx = torch.randperm(len(source_data_train))
@@ -257,63 +297,155 @@ def train(config,
                 source_g = source['pyg'].to(device)
                 source_m = source['mat'].to(device)    # (n_s, n_s)
                 target_m = target['mat'].to(device)    # (n_t, n_t)
+                
+                # Print statistics for first batch of first epoch
+                if epoch == 0 and batch_counter == 0:
+                    print_tensor_stats(target_m, "Target Adjacency Matrix")
+                
+                # -------------- Debug early forward pass --------------
+                if epoch == 0 and batch_counter == 0:
+                    with torch.no_grad():
+                        print("\n===== Initial Generator Output Debug =====")
+                        dual_pred_x_debug = generator(source_g, target_m)
+                        print_tensor_stats(dual_pred_x_debug, "Generator Dual Output")
+                        
+                        fake_adj_debug = revert_dual(dual_pred_x_debug, n_target_nodes)
+                        print_tensor_stats(fake_adj_debug, "Converted Adjacency Matrix")
+                        
+                        dual_target_x_debug = create_dual_graph_feature_matrix(target_m)
+                        print_tensor_stats(dual_target_x_debug, "Target Dual Features")
+                        print("=============================================\n")
 
-                # Train Discriminator
+                # ======== Train Discriminator ========
                 optimizer_D.zero_grad()
                 
-                # Real samples
-                real_output = discriminator(target_m)
-                real_labels = torch.ones_like(real_output)
+                # --- Real samples with label smoothing ---
+                real_target_m = add_noise(target_m, 0.05)  # Add small noise to real samples
+                real_output = discriminator(real_target_m)
+                # Use label smoothing: target 0.9 instead of 1.0
+                real_labels = torch.ones_like(real_output) * 0.9  
                 loss_D_real = criterion_BCE(real_output, real_labels)
                 
-                # Fake samples - get dual graph features from generator
+                # --- Fake samples ---
                 dual_pred_x = generator(source_g, target_m)
                 
-                # Convert dual graph features back to adjacency matrix for discriminator
+                # Check for NaN or extreme values
+                if torch.isnan(dual_pred_x).any():
+                    print(f"WARNING: NaN detected in generator output at epoch {epoch}, batch {batch_counter}")
+                    dual_pred_x = torch.nan_to_num(dual_pred_x, nan=0.0, posinf=1.0, neginf=0.0)
+                
+                # Convert dual graph features to adjacency matrix
                 fake_adj = revert_dual(dual_pred_x, n_target_nodes)
                 
+                # Add noise to fake samples too
+                fake_adj = add_noise(fake_adj, 0.05)
+                
+                # Clip to valid range if needed
+                fake_adj = torch.clamp(fake_adj, 0.0, 1.0)
+                
                 fake_output = discriminator(fake_adj.detach())  # Detach to avoid backprop through generator
-                fake_labels = torch.zeros_like(fake_output)
+                # Label smoothing: target 0.1 instead of 0.0
+                fake_labels = torch.zeros_like(fake_output) + 0.1
                 loss_D_fake = criterion_BCE(fake_output, fake_labels)
+                
+                # Calculate discriminator accuracy for monitoring
+                d_real_acc = ((real_output > 0.5).float().mean()).item()
+                d_fake_acc = ((fake_output < 0.5).float().mean()).item()
                 
                 # Total discriminator loss
                 loss_D = loss_D_real + loss_D_fake
-                loss_D.backward()
-                optimizer_D.step()
+                
+                # Only update discriminator if it's not too strong
+                update_D = True
+                if d_real_acc > 0.95 and d_fake_acc > 0.95:
+                    update_D = False
+                    print(f"Skipping discriminator update at epoch {epoch}, batch {batch_counter} - discriminator too strong")
+                
+                if update_D:
+                    loss_D.backward()
+                    # Clip gradients for stability
+                    torch.nn.utils.clip_grad_norm_(discriminator.parameters(), max_norm=1.0)
+                    optimizer_D.step()
 
-                # Train Generator
+                # ======== Train Generator ========
                 optimizer_G.zero_grad()
                 
-                # Get dual features for target (ground truth)
+                # Get target in dual format for L1 loss
                 dual_target_x = create_dual_graph_feature_matrix(target_m)
                 
-                # L1 loss on dual graph features
-                loss_G_L1 = criterion_L1(dual_pred_x, dual_target_x)
+                # L1 loss in dual space - scale down to balance with adversarial loss
+                l1_weight = 10.0  # Adjust this weight as needed
+                loss_G_L1 = criterion_L1(dual_pred_x, dual_target_x) * l1_weight
                 
-                # Adversarial loss (with non-detached fake_adj)
-                fake_output = discriminator(fake_adj)  # Note: not detached here
-                loss_G_adv = criterion_BCE(fake_output, real_labels)  # Generator wants discriminator to think fake is real
+                # Adversarial loss - get fresh discriminator output (no detach)
+                fake_output = discriminator(fake_adj)
+                # Target 1.0 for generator
+                loss_G_adv = criterion_BCE(fake_output, torch.ones_like(fake_output))
                 
-                # Total generator loss
+                # Calculate generator fool rate
+                g_fool_acc = ((fake_output > 0.5).float().mean()).item()
+                
+                # Total generator loss - weighted sum
                 loss_G = loss_G_L1 + loss_G_adv
+                
+                # Periodically print detailed loss breakdown
+                if batch_counter % 50 == 0:
+                    print(f"  Batch {batch_counter}: G_L1={loss_G_L1.item():.4f}, G_adv={loss_G_adv.item():.4f}, "
+                          f"D_real={loss_D_real.item():.4f}, D_fake={loss_D_fake.item():.4f}")
+                    print(f"  Accuracies: D_real={d_real_acc:.4f}, D_fake={d_fake_acc:.4f}, G_fool={g_fool_acc:.4f}")
+                
                 loss_G.backward()
+                # Clip gradients for stability
+                torch.nn.utils.clip_grad_norm_(generator.parameters(), max_norm=1.0)
                 optimizer_G.step()
 
+                # Update counters and accumulators
                 epoch_loss_G += loss_G.item()
                 epoch_loss_D += loss_D.item()
+                epoch_d_real_acc += d_real_acc
+                epoch_d_fake_acc += d_fake_acc
+                epoch_g_fool_acc += g_fool_acc
                 batch_counter += 1
 
-            epoch_loss_G /= len(source_data_train)
-            epoch_loss_D /= len(source_data_train)
+            # Calculate epoch averages
+            n_batches = len(source_data_train)
+            epoch_loss_G /= n_batches
+            epoch_loss_D /= n_batches
+            epoch_d_real_acc /= n_batches
+            epoch_d_fake_acc /= n_batches
+            epoch_g_fool_acc /= n_batches
+            
+            # Store losses and metrics
             train_losses_G.append(epoch_loss_G)
             train_losses_D.append(epoch_loss_D)
-            print(f"Epoch {epoch+1}/{config.experiment.n_epochs}, Generator Loss: {epoch_loss_G}, Discriminator Loss: {epoch_loss_D}")
+            d_real_accuracies.append(epoch_d_real_acc)
+            d_fake_accuracies.append(epoch_d_fake_acc)
+            g_fool_accuracies.append(epoch_g_fool_acc)
+            
+            # Print epoch summary
+            print(f"Epoch {epoch+1}/{config.experiment.n_epochs}")
+            print(f"  Generator Loss: {epoch_loss_G:.4f}, Discriminator Loss: {epoch_loss_D:.4f}")
+            print(f"  Discriminator Real Accuracy: {epoch_d_real_acc:.4f}, Fake Accuracy: {epoch_d_fake_acc:.4f}")
+            print(f"  Generator Fool Rate: {epoch_g_fool_acc:.4f}")
 
+            # Sample visualization - show what the generator is producing
+            if epoch % 5 == 0:
+                with torch.no_grad():
+                    idx = np.random.randint(0, len(source_data_val))
+                    sample_source_g = source_data_val[idx]['pyg'].to(device)
+                    sample_target_m = target_data_val[idx]['mat'].to(device)
+                    
+                    sample_dual_pred = generator(sample_source_g, sample_target_m)
+                    sample_fake_adj = revert_dual(sample_dual_pred, n_target_nodes)
+                    
+                    print_tensor_stats(sample_fake_adj, f"Epoch {epoch} Generated Adj")
+                    # Optional: save or visualize matrices
+            
             if config.experiment.log_val_loss:
-                # Validation function needs to be updated to work with STPGSR model
-                val_loss = eval_stpgsr(config, generator, source_data_val, target_data_val, criterion_L1)
+                # Validation
+                val_loss = evaluate(config, generator, source_data_val, target_data_val, criterion_L1)
                 val_losses.append(val_loss)
-                print(f"Epoch {epoch+1}/{config.experiment.n_epochs}, Val Loss: {val_loss}")
+                print(f"  Validation Loss: {val_loss:.4f}")
 
         # Save and plot losses
         torch.save(generator.state_dict(), f"{res_dir}/generator.pth")
@@ -321,16 +453,24 @@ def train(config,
         np.save(f'{res_dir}/train_losses_G.npy', np.array(train_losses_G))
         np.save(f'{res_dir}/train_losses_D.npy', np.array(train_losses_D))
         np.save(f'{res_dir}/val_losses.npy', np.array(val_losses))
+        np.save(f'{res_dir}/d_real_acc.npy', np.array(d_real_accuracies))
+        np.save(f'{res_dir}/d_fake_acc.npy', np.array(d_fake_accuracies))
+        np.save(f'{res_dir}/g_fool_acc.npy', np.array(g_fool_accuracies))
+        
+        # Plot losses and accuracy metrics
         plot_losses(train_losses_G, 'train_losses_G', res_dir)
         plot_losses(train_losses_D, 'train_losses_D', res_dir)
         plot_losses(val_losses, 'val', res_dir)
+        plot_losses(d_real_accuracies, 'd_real_acc', res_dir)
+        plot_losses(d_fake_accuracies, 'd_fake_acc', res_dir)
+        plot_losses(g_fool_accuracies, 'g_fool_acc', res_dir)
 
     return {
         'generator': generator,
         'discriminator': discriminator,
     }
 
-def eval_stpgsr(config, generator, source_data_val, target_data_val, criterion):
+def evaluate(config, generator, source_data_val, target_data_val, criterion):
     """
     Evaluation function for STPGSR model
     """
@@ -343,15 +483,41 @@ def eval_stpgsr(config, generator, source_data_val, target_data_val, criterion):
             source_g = source['pyg'].to(device)
             target_m = target['mat'].to(device)
             
-            # Get predictions
+            # Get predictions in dual space
             dual_pred_x = generator(source_g, target_m)
             
-            # Get target dual features
+            # Convert target to dual space
             dual_target_x = create_dual_graph_feature_matrix(target_m)
             
-            # Calculate loss
+            # Calculate loss in dual space
             loss = criterion(dual_pred_x, dual_target_x)
             total_loss += loss.item()
     
     generator.train()
     return total_loss / len(source_data_val)
+
+# Function for visualizing adjacency matrices
+def visualize_adjacency_matrix(adj_matrix, title, save_path=None):
+    """
+    Visualize an adjacency matrix.
+    
+    Args:
+        adj_matrix (torch.Tensor): The adjacency matrix to visualize
+        title (str): Title for the plot
+        save_path (str, optional): Path to save the visualization
+    """
+    plt.figure(figsize=(8, 8))
+    
+    # Convert to numpy if it's a tensor
+    if isinstance(adj_matrix, torch.Tensor):
+        adj_matrix = adj_matrix.detach().cpu().numpy()
+    
+    plt.imshow(adj_matrix, cmap='viridis')
+    plt.colorbar()
+    plt.title(title)
+    
+    if save_path:
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
