@@ -62,43 +62,51 @@ class TargetEdgeInitializer(nn.Module):
 
         if num_layers == 1:
             # If only one layer, map directly from in_dim to out_dim
+            self.bns.append(GraphNorm(n_source_nodes))
             self.convs.append(TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
                                      dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(n_target_nodes))
         else:
+            self.bns.append(GraphNorm(n_source_nodes))
             self.convs.append(TransformerConv(n_source_nodes, hidden_dim // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
                                      dropout=dropout, beta=beta))
-            self.bns.append(GraphNorm(hidden_dim))
 
             for _ in range(num_layers - 2):
+                self.bns.append(GraphNorm(hidden_dim))
                 self.convs.append(TransformerConv(hidden_dim, hidden_dim // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
                                      dropout=dropout, beta=beta))
-                self.bns.append(GraphNorm(hidden_dim))
 
+            self.bns.append(GraphNorm(hidden_dim))
             self.convs.append(TransformerConv(hidden_dim, n_target_nodes // num_heads, heads=num_heads,
                                               dropout=dropout, edge_dim=edge_dim, beta=beta))
-            self.bns.append(GraphNorm(n_target_nodes)) 
+ 
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
-        x_res = self.residual_proj(x)
+        # Initial projection to match dimensions
+        identity = self.residual_proj(x)
         
-        #x = self.conv1(x, edge_index, edge_attr)
+        # Pre-activation style residuals
         for i in range(self.num_layers-1):
-            x = self.convs[i](x, edge_index, edge_attr)
-            x = self.bns[i](x)
-            x = F.relu(x)
-
-        x = self.convs[-1](x, edge_index, edge_attr)
-        #residual
-        x = x + x_res
+            # Apply norm and activation before conv (pre-activation)
+            x_norm = self.bns[i](x) # The original ResNet paper used post-activation (conv->bn->relu), and this is still very common. However, the authors of ResNet later published a follow-up paper "Identity Mappings in Deep Residual Networks" where they found that Can help with gradient flow in very deep networks
+            x_norm = F.relu(x_norm) #1) Can help with gradient flow in very deep networks 2) Ensures clean residual paths 3) Can provide better regularization
+            x_conv = self.convs[i](x_norm, edge_index, edge_attr)
+            
+            # Add residual every 2 layers
+            if i % 2 == 1:
+                x = x_conv + identity
+            else:
+                x = x_conv
         
+        # Final layer
         x = self.bns[-1](x)
         x = F.relu(x)
+        x = self.convs[-1](x, edge_index, edge_attr)
+        x = x + identity  # Final residual connection
 
         xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
 
