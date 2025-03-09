@@ -77,16 +77,33 @@ class TargetEdgeInitializer(nn.Module):
         
         # Option 1: Graph convolution approach
         xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)  # Structure-based transformation
-        # xt = xt.T @ xt  # Feature-wise similarity after transformation
+        #print("After graph_conv:", xt.shape, xt.min().item(), xt.max().item())
+
+        xt = xt.T @ xt  # Feature-wise similarity after transformation
 
         # Option 2: Attention-based approach 
-        scores = torch.matmul(xt, xt.transpose(-2, -1)) / (math.sqrt(xt.size(-1) + 1e-8))
-        attention = F.softmax(scores, dim=-1)
-        xt = torch.matmul(attention, xt)
+        # Correct attention calculation for super-resolution:
+        # 1. Project queries and keys to the target dimension
+        # queries = x  # [160, 268]
+        # keys = x.transpose(-2, -1)  # [268, 160]
+        # values = x  # [160, 268]
+
+        # # 2. Calculate attention scores
+        # scores = torch.matmul(queries, keys) / math.sqrt(x.size(-1))  # [160, 160]
+        # attention_weights = F.softmax(scores, dim=-1)  # [160, 160]
+
+        # # 3. Apply attention and project to target dimension
+        # xt = torch.matmul(attention_weights, values)  # [160, 268]
+        # xt = xt.transpose(-2, -1) @ xt  # [268, 268]
+        #print("After attention:", xt.shape, xt.min().item(), xt.max().item())
+        
 
         # Option 3: Message passing approach
+        # num_nodes = x.shape[0]
         # messages = torch.index_select(x, 0, edge_index[0])
-        # xt = scatter_mean(messages, edge_index[1], dim=0)
+        # xt = torch.zeros_like(x)
+
+        # xt = xt.index_add_(0, edge_index[1], messages) / torch.bincount(edge_index[1], minlength=num_nodes).unsqueeze(-1)
         
         # Currently using matrix multiplication approach:
         #xt = x.T @ x    # xt will be treated as the adjacency matrix of the target graph
@@ -99,7 +116,8 @@ class TargetEdgeInitializer(nn.Module):
         # Fetch and reshape upper triangular part to get dual graph's node feature matrix
         ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
         x = torch.masked_select(xt, ut_mask).view(-1, 1)
-
+        #print("Final xt:", x.shape, x.isnan().any().item(), x.isinf().any().item())
+        #raise Exception("Stop here")
         return x
     
 
