@@ -144,38 +144,38 @@ if __name__ == "__main__":
     X = df_lr_train
     y = df_hr_train
 
-    fold_metrics = []
-    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
-        print(f"Fold {fold + 1}/{k_folds}")
+    # fold_metrics = []
+    # for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+    #     print(f"Fold {fold + 1}/{k_folds}")
         
-        # Split data for this fold
-        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
-        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+    #     # Split data for this fold
+    #     X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+    #     y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
         
-        print(f"  Training samples: {X_train.shape[0]}")
-        print(f"  Validation samples: {X_val.shape[0]}")
+    #     print(f"  Training samples: {X_train.shape[0]}")
+    #     print(f"  Validation samples: {X_val.shape[0]}")
         
-        model = NaiveMLP(
-            input_dim=12720,
-            hidden_dims=[4096, 2048, 1024, 512],
-            output_dim=35778,
-            dropout_rate=0.3
-        )
+    #     model = NaiveMLP(
+    #         input_dim=12720,
+    #         hidden_dims=[4096, 2048, 1024, 512],
+    #         output_dim=35778,
+    #         dropout_rate=0.3
+    #     )
 
-        model, metrics = train_model(model, X_train, y_train, X_val, y_val)
-        fold_metrics.append(metrics)
+    #     model, metrics = train_model(model, X_train, y_train, X_val, y_val)
+    #     fold_metrics.append(metrics)
 
-        print(f"  Validation Loss: {metrics['val_loss']:.4f}")
-    print(fold_metrics)
+    #     print(f"  Validation Loss: {metrics['val_loss']:.4f}")
+    # print(fold_metrics)
 
-    # # Train on all data
-    # model = NaiveMLP(
-    #     input_dim=12720,
-    #     hidden_dims=[4096, 2048, 1024, 512],
-    #     output_dim=35778,
-    #     dropout_rate=0.3
-    # )
-    # model = train_all_data(model, X, y)
-    # # Save model
-    # torch.save(model.state_dict(), "model.pth")
-    # print("Model saved")
+    # Train on all data
+    model = NaiveMLP(
+        input_dim=12720,
+        hidden_dims=[4096, 2048, 1024, 512],
+        output_dim=35778,
+        dropout_rate=0.3
+    )
+    model = train_all_data(model, X, y)
+    # Save model
+    torch.save(model.state_dict(), "model.pth")
+    print("Model saved")
