@@ -77,7 +77,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target, all_metrics=True)
+        evaluate_matrices(predicted, target, all_metrics=False)
 
 
         # Plot predictions for a random sample

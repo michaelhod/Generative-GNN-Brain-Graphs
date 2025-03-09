@@ -160,6 +160,17 @@ def train(config,
         plot_losses(train_losses, 'train', res_dir)
         plot_losses(val_losses, 'val', res_dir)
 
+        # Plot both train and val losses in a single plot
+        import matplotlib.pyplot as plt
+        
+        plt.plot(train_losses, label='Train Loss')
+        plt.plot(val_losses, label='Val Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig(f'{res_dir}/train_val_losses.png')
+        plt.close()
+
         # Create gif for gradient flows
         #gif_path = f"{res_dir}/gradient_flow.gif"
         #create_gif_grad(tmp_dir, gif_path)

@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import TransformerConv, GraphNorm
+from torch_geometric.nn import TransformerConv, GraphNorm, GATConv
 
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
-
-    
+ 
 class TargetEdgeInitializer(nn.Module):
     """TransformerConv based taregt edge initialization model"""
     def __init__(self, n_source_nodes, n_target_nodes, num_heads=4, hidden_dim=64, num_layers=2, edge_dim=1, 
@@ -14,23 +13,12 @@ class TargetEdgeInitializer(nn.Module):
         assert n_target_nodes % num_heads == 0
 
         self.num_layers = num_layers
-        
-        self.conv1 = TransformerConv(n_source_nodes, hidden_dim // num_heads,
-                                        heads=num_heads, edge_dim=edge_dim,
-                                        dropout=dropout, beta=beta)
-        self.bn1 = GraphNorm(hidden_dim)
-
-        self.conv2 = TransformerConv(hidden_dim, n_target_nodes // num_heads,
-                                        heads=num_heads, edge_dim=edge_dim,
-                                        dropout=dropout, beta=beta)
-        self.bn2 = GraphNorm(n_target_nodes)
-
 
         self.convs = nn.ModuleList()
         self.bns = nn.ModuleList()
+        self.phi = nn.Parameter(torch.nn.init.xavier_uniform_(torch.empty(2*n_target_nodes, 1)))
 
         if num_layers == 1:
-            # If only one layer, map directly from in_dim to out_dim
             self.convs.append(TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
                                      dropout=dropout, beta=beta))
@@ -50,11 +38,6 @@ class TargetEdgeInitializer(nn.Module):
             self.convs.append(TransformerConv(hidden_dim, n_target_nodes // num_heads, heads=num_heads,
                                               dropout=dropout, edge_dim=edge_dim, beta=beta))
             self.bns.append(GraphNorm(n_target_nodes)) 
-
-        # self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
-        #                              heads=num_heads, edge_dim=edge_dim,
-        #                              dropout=dropout, beta=beta)
-        # self.bn1 = GraphNorm(n_target_nodes)
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
