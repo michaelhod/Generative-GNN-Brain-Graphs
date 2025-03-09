@@ -92,14 +92,14 @@ def main(config):
     else:
         print("Running on CPU")
 
-    do_test = True
+    do_test = False
     if do_test:
         test_data = load_test(config)
         eval_all_data(config, test_data)
         return
         
 
-    train_all = True
+    train_all = False
     if train_all:
         # Load dataset
         source_data, target_data = load_dataset(config)
@@ -161,11 +161,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-<<<<<<< HEAD:stp-gsr/main.py
         evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=True)
-=======
-        evaluate_matrices(predicted, target, all_metrics=False)
->>>>>>> origin/model_testing:stp_gsr/main.py
 
 
         # Plot predictions for a random sample
