@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import TransformerConv, GraphNorm
+from torch_geometric.nn import TransformerConv, GraphNorm, GCNConv
 
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
 
@@ -51,6 +51,8 @@ class TargetEdgeInitializer(nn.Module):
                                      dropout=dropout, beta=beta)
         self.bn1 = GraphNorm(n_source_nodes * num_heads)
         
+        self.graph_conv = GCNConv(in_channels=n_source_nodes * num_heads, out_channels=n_source_nodes * num_heads, improved=True)
+
         self.residual_proj = nn.Linear(n_source_nodes, n_source_nodes * num_heads)
 
     def forward(self, data):
@@ -65,8 +67,10 @@ class TargetEdgeInitializer(nn.Module):
         
         x = self.bn1(x)
         x = F.relu(x)
-
-        xt = x.T @ x    
+        print(x.shape)
+        xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
+        print(xt.shape)
+        xt = xt.T @ xt     
 
         xt_min = torch.min(xt)
         xt_max = torch.max(xt)
