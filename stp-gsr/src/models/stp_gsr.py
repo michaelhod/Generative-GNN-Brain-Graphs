@@ -41,31 +41,63 @@ from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_ma
 #         return x
 class TargetEdgeInitializer(nn.Module):
     """TransformerConv based target edge initialization model with residual connection"""
-    def __init__(self, n_source_nodes, n_target_nodes, num_heads=4, edge_dim=1, 
+    def __init__(self, n_source_nodes, n_target_nodes, num_heads=4, hidden_dim=64, num_layers=2, edge_dim=1, 
                  dropout=0.2, beta=False):
         super().__init__()
         assert n_target_nodes % num_heads == 0
 
-        self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
-                                     heads=num_heads, edge_dim=edge_dim,
-                                     dropout=dropout, beta=beta)
-        self.bn1 = GraphNorm(n_target_nodes)
+        self.num_layers = num_layers
+
+        # self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
+        #                              heads=num_heads, edge_dim=edge_dim,
+        #                              dropout=dropout, beta=beta)
+        # self.bn1 = GraphNorm(n_target_nodes)
         
         self.graph_conv = GCNConv(in_channels=n_target_nodes, out_channels=n_target_nodes, improved=True)
 
         self.residual_proj = nn.Linear(n_source_nodes, n_target_nodes)
+
+        self.convs = nn.ModuleList()
+        self.bns = nn.ModuleList()
+
+        if num_layers == 1:
+            # If only one layer, map directly from in_dim to out_dim
+            self.convs.append(TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(n_target_nodes))
+        else:
+            self.convs.append(TransformerConv(n_source_nodes, hidden_dim // num_heads, 
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta))
+            self.bns.append(GraphNorm(hidden_dim))
+
+            for _ in range(num_layers - 2):
+                self.convs.append(TransformerConv(hidden_dim, hidden_dim // num_heads, 
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta))
+                self.bns.append(GraphNorm(hidden_dim))
+
+            self.convs.append(TransformerConv(hidden_dim, n_target_nodes // num_heads, heads=num_heads,
+                                              dropout=dropout, edge_dim=edge_dim, beta=beta))
+            self.bns.append(GraphNorm(n_target_nodes)) 
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
         x_res = self.residual_proj(x)
         
-        x = self.conv1(x, edge_index, edge_attr)
-        
+        #x = self.conv1(x, edge_index, edge_attr)
+        for i in range(self.num_layers-1):
+            x = self.convs[i](x, edge_index, edge_attr)
+            x = self.bns[i](x)
+            x = F.relu(x)
+
+        x = self.convs[-1](x, edge_index, edge_attr)
         #residual
         x = x + x_res
         
-        x = self.bn1(x)
+        x = self.bns[-1](x)
         x = F.relu(x)
 
         xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
