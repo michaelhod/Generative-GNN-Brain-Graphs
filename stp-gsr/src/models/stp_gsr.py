@@ -51,33 +51,27 @@ class TargetEdgeInitializer(nn.Module):
                                      dropout=dropout, beta=beta)
         self.bn1 = GraphNorm(n_source_nodes * num_heads)
         
-        # Linear projection to match dimensions for residual connection
         self.residual_proj = nn.Linear(n_source_nodes, n_source_nodes * num_heads)
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
-        # Save the input for residual connection
         x_res = self.residual_proj(x)
         
-        # Update node embeddings for the source graph
         x = self.conv1(x, edge_index, edge_attr)
         
-        # Add residual connection
+        #residual
         x = x + x_res
         
         x = self.bn1(x)
         x = F.relu(x)
 
-        # Super-resolve source graph using matrix multiplication
-        xt = x.T @ x    # xt will be treated as the adjacency matrix of the target graph
+        xt = x.T @ x    
 
-        # Normalize values to be between [0, 1]
         xt_min = torch.min(xt)
         xt_max = torch.max(xt)
-        xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
+        xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  
 
-        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
         ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
         x = torch.masked_select(xt, ut_mask).view(-1, 1)
 
@@ -121,26 +115,20 @@ class DualGraphLearner(nn.Module):
                                      dropout=dropout, beta=beta)
         self.bn1 = GraphNorm(in_dim)
         
-        # Output projection to match the required output dimension
         self.out_proj = nn.Linear(in_dim, out_dim)
 
     def forward(self, x, edge_index):
-        # Save input for residual connection
+
         x_res = x
-        
-        # Update embeddings for the dual nodes/ primal edges
+
         x = self.conv1(x, edge_index)
-        
-        # Add residual connection
         x = x + x_res
         
         x = self.bn1(x)
         x = F.relu(x)
         
-        # Project to output dimension
         x = self.out_proj(x)
         
-        # Normalize values to be between [0, 1]
         xt_min = torch.min(x)
         xt_max = torch.max(x)
         xt = (x - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
@@ -213,10 +201,8 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
         
-        # Alpha parameter for residual weighting (learnable)
+        #alpha for residual weights, to be learnt
         self.alpha = nn.Parameter(torch.tensor(0.5))
-        
-        # Create dual graph domain: Assume a fully connected simple graph
         fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
         self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
 
@@ -228,20 +214,15 @@ class STPGSR(nn.Module):
         source_pyg = source_pyg.to(self.device)
         target_mat = target_mat.to(self.device)
         
-        # Initialize target edges
         target_edge_init = self.target_edge_initializer(source_pyg)
-        
-        # Save the initial prediction for residual connection
         initial_prediction = target_edge_init.clone()
         
-        # Update target edges in the dual space 
         dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
         
-        # Apply residual connection with learnable weight
-        alpha = torch.sigmoid(self.alpha)  # Constrain alpha between 0 and 1
+        # add residual with weights to learn
+        alpha = torch.sigmoid(self.alpha)
         dual_pred_x = alpha * dual_pred_x + (1 - alpha) * initial_prediction
 
-        # Convert target matrix into edge feature matrix
         dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
         return dual_pred_x, dual_target_x
