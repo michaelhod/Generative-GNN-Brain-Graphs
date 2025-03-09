@@ -53,7 +53,7 @@ class TargetEdgeInitializer(nn.Module):
         #                              dropout=dropout, beta=beta)
         # self.bn1 = GraphNorm(n_target_nodes)
         
-        self.graph_conv = GCNConv(in_channels=n_target_nodes, out_channels=n_target_nodes, improved=True)
+        #self.graph_conv = GCNConv(in_channels=n_target_nodes, out_channels=n_target_nodes, improved=True)
 
         self.residual_proj = nn.Linear(n_source_nodes, n_target_nodes)
 
@@ -108,9 +108,9 @@ class TargetEdgeInitializer(nn.Module):
         x = self.convs[-1](x, edge_index, edge_attr)
         x = x + identity  # Final residual connection
 
-        xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
+        #xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
 
-        xt = xt.T @ xt     
+        xt = x.T @ x     
 
         xt_min = torch.min(xt)
         xt_max = torch.max(xt)
