@@ -28,7 +28,7 @@ def main(config):
 
     # Initialize folder structure for this run
     base_dir = config.experiment.base_dir
-    model_name = config.model.name
+    model_name = config.model.name+"_attention"
     dataset_type = config.dataset.name
     run_name = config.experiment.run_name
     run_dir = f'{base_dir}/{model_name}/{dataset_type}/{run_name}/'
@@ -77,7 +77,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target, all_metrics=True)
+        evaluate_matrices(predicted, target, all_metrics=False)
 
 
         # Plot predictions for a random sample

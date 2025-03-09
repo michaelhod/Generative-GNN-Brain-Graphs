@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -76,13 +77,13 @@ class TargetEdgeInitializer(nn.Module):
         
         # Option 1: Graph convolution approach
         xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)  # Structure-based transformation
-        xt = xt.T @ xt  # Feature-wise similarity after transformation
+        # xt = xt.T @ xt  # Feature-wise similarity after transformation
 
         # Option 2: Attention-based approach 
-        # scores = torch.matmul(x, x.transpose(-2, -1)) / math.sqrt(x.size(-1))
-        # attention = F.softmax(scores, dim=-1)
-        # xt = torch.matmul(attention, x)
-        
+        scores = torch.matmul(xt, xt.transpose(-2, -1)) / (math.sqrt(xt.size(-1) + 1e-8))
+        attention = F.softmax(scores, dim=-1)
+        xt = torch.matmul(attention, xt)
+
         # Option 3: Message passing approach
         # messages = torch.index_select(x, 0, edge_index[0])
         # xt = scatter_mean(messages, edge_index[1], dim=0)
@@ -94,7 +95,7 @@ class TargetEdgeInitializer(nn.Module):
         xt_min = torch.min(xt)
         xt_max = torch.max(xt)
         xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
-
+        
         # Fetch and reshape upper triangular part to get dual graph's node feature matrix
         ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
         x = torch.masked_select(xt, ut_mask).view(-1, 1)
