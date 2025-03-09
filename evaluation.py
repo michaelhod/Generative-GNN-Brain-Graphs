@@ -7,9 +7,10 @@ import torch
 import networkx as nx
 import numpy as np
 import torch
+import pandas as pd
 
 
-def evaluate_matrices(pred_matrices, gt_matrices, all_metrics=False):
+def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metrics=False):
     """
     Evaluate the predicted matrices against the ground-truth matrices.
 
@@ -117,7 +118,7 @@ def evaluate_matrices(pred_matrices, gt_matrices, all_metrics=False):
     print("Average MAE eigenvector centrality:", avg_mae_ec)
     print("Average MAE PageRank centrality:", avg_mae_pc)
 
-    return {
+    data = {
         "MAE": mae,
         "PCC": pcc,
         "JS_Distance": js_dis,
@@ -125,6 +126,12 @@ def evaluate_matrices(pred_matrices, gt_matrices, all_metrics=False):
         "MAE_EC": avg_mae_ec,
         "MAE_PC": avg_mae_pc
     }
+
+    df = pd.DataFrame(data=data, index=[0])
+
+    df.to_csv(f"../evaluation/{model_name}/fold_{fold_num}.csv", index=False)
+
+    return data
 
 if __name__ == "__main__":    
     # Example data generation (just for demonstration)
