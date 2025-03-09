@@ -1,0 +1,55 @@
+MAE:  0.1275208443403244
+PCC:  0.67038786
+Jensen-Shannon Distance:  0.2791724
+Average MAE betweenness centrality: 0.02048126030379847
+Average MAE eigenvector centrality: 0.0122918952658928
+Average MAE PageRank centrality: 0.0005487631172425525
+
+MAE:  0.1527547389268875
+PCC:  0.546822
+Jensen-Shannon Distance:  0.31963545
+Average MAE betweenness centrality: 0.021083903233923913
+Average MAE eigenvector centrality: 0.014357239732907336
+Average MAE PageRank centrality: 0.0006198580107754074
+
+MAE:  0.13813364505767822
+PCC:  0.6193035
+Jensen-Shannon Distance:  0.28638518
+Average MAE betweenness centrality: 0.021694135938996793
+Average MAE eigenvector centrality: 0.012230471400579162
+Average MAE PageRank centrality: 0.0005703909076498627
+
+
+MAE:  0.14880771934986115
+PCC:  0.54378945
+Jensen-Shannon Distance:  0.33272204
+Average MAE betweenness centrality: 0.021781468927103222
+Average MAE eigenvector centrality: 0.015229563921905578
+Average MAE PageRank centrality: 0.0007708350617338516
+
+
+-----
+
+
+MAE:  0.13841095566749573
+PCC:  0.62059295
+Jensen-Shannon Distance:  0.3036734
+Average MAE betweenness centrality: 0.020340820997896143
+Average MAE eigenvector centrality: 0.01482198911211681
+Average MAE PageRank centrality: 0.0006548857987424733
+
+
+MAE:  0.14886261522769928
+PCC:  0.5879344
+Jensen-Shannon Distance:  0.32350695
+Average MAE betweenness centrality: 0.020740731617501146
+Average MAE eigenvector centrality: 0.015024532790096374
+Average MAE PageRank centrality: 0.0006453324988758824
+
+
+MAE:  0.17729820311069489
+PCC:  0.34978488
+Jensen-Shannon Distance:  0.3849582
+Average MAE betweenness centrality: 0.0242484785133752
+Average MAE eigenvector centrality: 0.018104463404337065
+Average MAE PageRank centrality: 0.0011604937546587357
