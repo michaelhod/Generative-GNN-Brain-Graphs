@@ -46,14 +46,14 @@ class TargetEdgeInitializer(nn.Module):
         super().__init__()
         assert n_target_nodes % num_heads == 0
 
-        self.conv1 = TransformerConv(n_source_nodes, n_source_nodes, 
+        self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads, 
                                      heads=num_heads, edge_dim=edge_dim,
                                      dropout=dropout, beta=beta)
-        self.bn1 = GraphNorm(n_source_nodes * num_heads)
+        self.bn1 = GraphNorm(n_target_nodes)
         
-        self.graph_conv = GCNConv(in_channels=n_source_nodes * num_heads, out_channels=n_source_nodes * num_heads, improved=True)
+        self.graph_conv = GCNConv(in_channels=n_target_nodes, out_channels=n_target_nodes, improved=True)
 
-        self.residual_proj = nn.Linear(n_source_nodes, n_source_nodes * num_heads)
+        self.residual_proj = nn.Linear(n_source_nodes, n_target_nodes)
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
@@ -67,9 +67,9 @@ class TargetEdgeInitializer(nn.Module):
         
         x = self.bn1(x)
         x = F.relu(x)
-        print(x.shape)
+
         xt = self.graph_conv(x, edge_index, edge_weight=edge_attr)
-        print(xt.shape)
+
         xt = xt.T @ xt     
 
         xt_min = torch.min(xt)
