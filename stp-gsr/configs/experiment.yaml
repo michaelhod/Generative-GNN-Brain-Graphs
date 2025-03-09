@@ -16,5 +16,5 @@ experiment:
   kfold:
     n_splits: 3
     shuffle: True
-    random_state: 42
+    random_state: 40
 

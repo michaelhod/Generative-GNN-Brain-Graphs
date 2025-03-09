@@ -28,7 +28,7 @@ def main(config):
 
     # Initialize folder structure for this run
     base_dir = config.experiment.base_dir
-    model_name = config.model.name+"_residual_Morelayers_preactivation_no_graph_conv"
+    model_name = config.model.name+"_residual_2layers_preactivation_no_graph_conv"
     dataset_type = config.dataset.name
     run_name = config.experiment.run_name
     run_dir = f'{base_dir}/{model_name}/{dataset_type}/{run_name}/'
@@ -38,6 +38,7 @@ def main(config):
 
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(source_data)):
+        torch.cuda.empty_cache()
         print(f"Training Fold {fold+1}/3")
 
         # Initialize results directory
