@@ -35,8 +35,7 @@ def main(config):
 
     # Load dataset
     source_data, target_data = load_dataset(config)
-
-
+    
     for fold, (train_idx, val_idx) in enumerate(kf.split(source_data)):
         torch.cuda.empty_cache()
         print(f"Training Fold {fold+1}/3")
