@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import TransformerConv, GraphNorm, GCNConv
+from functools import partial
+from src.dataset import create_pyg_graph
+from MatrixVectorizer import MatrixVectorizer
 
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
 
@@ -228,9 +231,18 @@ class STPGSR(nn.Module):
         super().__init__()
         n_source_nodes = config.dataset.n_source_nodes
         n_target_nodes = config.dataset.n_target_nodes
+        self.n_hidden_layers = (n_source_nodes + n_target_nodes) // 2
 
-        self.target_edge_initializer = TargetEdgeInitializer(
+        self.target_edge_initializer1 = TargetEdgeInitializer(
                             n_source_nodes,
+                            self.n_hidden_layers,
+                            num_heads=2,
+                            edge_dim=config.model.target_edge_initializer.edge_dim,
+                            dropout=config.model.target_edge_initializer.dropout,
+                            beta=config.model.target_edge_initializer.beta
+        )
+        self.target_edge_initializer2 = TargetEdgeInitializer(
+                            self.n_hidden_layers,
                             n_target_nodes,
                             num_heads=config.model.target_edge_initializer.num_heads,
                             edge_dim=config.model.target_edge_initializer.edge_dim,
@@ -247,6 +259,9 @@ class STPGSR(nn.Module):
         
         #alpha for residual weights, to be learnt
         self.alpha = nn.Parameter(torch.tensor(0.5))
+        fully_connected_hidden_mat = torch.ones((self.n_hidden_layers, self.n_hidden_layers), dtype=torch.float)   # (n_t, n_t)
+        self.fully_connected_hidden_edge_index, _ = create_dual_graph(fully_connected_hidden_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
+        
         fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
         self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
 
@@ -258,10 +273,18 @@ class STPGSR(nn.Module):
         source_pyg = source_pyg.to(self.device)
         target_mat = target_mat.to(self.device)
         
-        target_edge_init = self.target_edge_initializer(source_pyg)
-        initial_prediction = target_edge_init.clone()
+        target_edge_init1 = self.target_edge_initializer1(source_pyg)
+        target_edge_init1 = MatrixVectorizer.anti_vectorize(target_edge_init1, self.n_hidden_layers)
+        target_edge_init1 = torch.tensor(target_edge_init1, dtype=torch.float)
+
+        pyg_partial = partial(create_pyg_graph, node_feature_init='adj', node_feat_dim=self.n_hidden_layers)
+        hidden_pyg = pyg_partial(target_edge_init1, self.n_hidden_layers)
+        hidden_pyg = hidden_pyg.to(self.device)
         
-        dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
+        target_edge_init2 = self.target_edge_initializer2(hidden_pyg)
+        initial_prediction = target_edge_init2.clone()
+        
+        dual_pred_x = self.dual_learner(target_edge_init2, self.dual_edge_index)
         
         # add residual with weights to learn
         alpha = torch.sigmoid(self.alpha)

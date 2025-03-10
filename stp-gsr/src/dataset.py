@@ -17,14 +17,13 @@ def load_dataset(config):
     
     if config.dataset.name == 'custom':
         # Import adjacency matrices from file
-        #LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
-        LR_TEST_DATA_FILE_NAME = "lr_test.csv"
-        #print(LR_TEST_DATA_FILE_NAME)
+        LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
+        #LR_TEST_DATA_FILE_NAME = "lr_test.csv"
         HR_TRAIN_DATA_FILE_NAME = "hr_train.csv"
 
-        DATA_DIR = os.path.join(".", "data")
+        DATA_DIR = os.path.join("..", "data")
 
-        LR_TRAIN_DATA_PATH = os.path.join(DATA_DIR, LR_TEST_DATA_FILE_NAME)
+        LR_TRAIN_DATA_PATH = os.path.join(DATA_DIR, LR_TRAIN_DATA_FILE_NAME)
         HR_TRAIN_DATA_PATH = os.path.join(DATA_DIR, HR_TRAIN_DATA_FILE_NAME)
 
         df_lr_train = pd.read_csv(LR_TRAIN_DATA_PATH)
