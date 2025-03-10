@@ -9,7 +9,6 @@ import networkx as nx
 import numpy as np
 import torch
 import pandas as pd
-from GraphRicciCurvature.OllivierRicci import OllivierRicci
 
 def compute_laplacian_energy(graph):
     """
@@ -37,22 +36,7 @@ def compute_laplacian_energy(graph):
     # Compute Laplacian Energy
     avg_lambda = (2 * m) / n
     energy = np.sum(np.abs(eigenvalues - avg_lambda))
-def compute_ricci_curvature(graph):
-    """
-    Compute the Ricci curvature of a graph.
-    
-    Params:
-    - graph : networkx.Graph
-        The graph for which to compute the Ricci curvature.
-    
-    Returns:
-    - dict: A dictionary containing the Ricci curvature values for each edge in the graph.
-    """
-    # Compute Ricci curvature
-    orc = OllivierRicci(graph, alpha=0.5, verbose="INFO")
-    orc.compute_ricci_curvature()
-
-    return orc.G.edges(data="ricciCurvature")
+    return energy
 
 def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metrics=False):
     """
