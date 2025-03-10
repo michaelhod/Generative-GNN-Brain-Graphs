@@ -92,14 +92,14 @@ def main(config):
     else:
         print("Running on CPU")
 
-    do_test = True
+    do_test = False
     if do_test:
         test_data = load_test(config)
         eval_all_data(config, test_data)
         return
         
 
-    train_all = True
+    train_all = False
     if train_all:
         # Load dataset
         source_data, target_data = load_dataset(config)

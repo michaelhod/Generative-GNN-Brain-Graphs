@@ -192,7 +192,7 @@ def train(config,
             train_losses.append(epoch_loss)
 
             # Log validation loss
-            if config.experiment.log_val_loss:
+            if config.experiment.log_val_loss and (epoch+1) % 5 == 0:
                 _, val_loss = eval(config, model, source_data_val, target_data_val, criterion)
                 print(f"Epoch {epoch+1}/{config.experiment.n_epochs}, Val Loss: {val_loss}")
                 val_losses.append(val_loss)

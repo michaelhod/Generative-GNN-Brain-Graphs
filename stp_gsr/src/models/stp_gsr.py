@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import TransformerConv, GraphNorm, GATConv
 
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
+from src.dataset import create_pyg_graph
  
 class TargetEdgeInitializer(nn.Module):
     """TransformerConv based taregt edge initialization model"""
@@ -69,7 +70,7 @@ class TargetEdgeInitializer(nn.Module):
         ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
         x = torch.masked_select(xt, ut_mask).view(-1, 1)
 
-        return x
+        return x, xt
     
 
 class DualGraphLearner(nn.Module):
@@ -105,11 +106,22 @@ class STPGSR(nn.Module):
         super().__init__()
         n_source_nodes = config.dataset.n_source_nodes
         n_target_nodes = config.dataset.n_target_nodes
+        self.n_hidden_nodes = (n_source_nodes + n_target_nodes) // 2
 
-        self.target_edge_initializer = TargetEdgeInitializer(
+        self.target_edge_initializer_1 = TargetEdgeInitializer(
                             n_source_nodes,
+                            self.n_hidden_nodes,
+                            num_heads=2,
+                            hidden_dim=config.model.target_edge_initializer.hidden_dim,
+                            num_layers=config.model.target_edge_initializer.num_layers,
+                            edge_dim=config.model.target_edge_initializer.edge_dim,
+                            dropout=config.model.target_edge_initializer.dropout,
+                            beta=config.model.target_edge_initializer.beta
+        )
+        self.target_edge_initializer_2 = TargetEdgeInitializer(
+                            self.n_hidden_nodes,
                             n_target_nodes,
-                            num_heads=config.model.target_edge_initializer.num_heads,
+                            num_heads=2,
                             hidden_dim=config.model.target_edge_initializer.hidden_dim,
                             num_layers=config.model.target_edge_initializer.num_layers,
                             edge_dim=config.model.target_edge_initializer.edge_dim,
@@ -123,7 +135,7 @@ class STPGSR(nn.Module):
                             dropout=config.model.dual_learner.dropout,
                             beta=config.model.dual_learner.beta
         )
-        print(self.target_edge_initializer)
+        print(self.target_edge_initializer_1)
         print("-"*50)
         print(self.dual_learner)
         # Create dual graph domain: Assume a fully connected simple graph
@@ -140,7 +152,18 @@ class STPGSR(nn.Module):
         target_mat = target_mat.to(self.device)
         
         # Initialize target edges
-        target_edge_init = self.target_edge_initializer(source_pyg)
+        target_edge_init, xt = self.target_edge_initializer_1(source_pyg)
+        #print("xt", xt.shape) 
+
+        # target_edge_init is torch.Size([22791, 1])
+        # We need to use xt to create the intermediate_pyg for the next target_edge_initializer
+        # it needs to have data.x, data.pos_edge_index, data.edge_attr
+        intermediate_pyg = create_pyg_graph(xt, self.n_hidden_nodes, node_feature_init='adj', node_feat_dim=1)
+        # to gpu
+        intermediate_pyg = intermediate_pyg.to(self.device)
+
+        target_edge_init, xt = self.target_edge_initializer_2(intermediate_pyg)
+
         initial_prediction = target_edge_init.clone()
         # Update target edges in the dual space 
         dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
