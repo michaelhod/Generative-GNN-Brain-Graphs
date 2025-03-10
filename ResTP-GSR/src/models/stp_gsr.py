@@ -7,7 +7,7 @@ from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_ma
  
 class TargetEdgeInitializer(nn.Module):
     """Two-stage TransformerConv based target edge initialization model"""
-    def __init__(self, n_source_nodes=168, mid_size=200, n_target_nodes=268, num_heads=4, 
+    def __init__(self, n_source_nodes=160, mid_size=200, n_target_nodes=268, num_heads=4, 
                  hidden_dim=64, num_layers=2, edge_dim=1, dropout=0.2, beta=False):
         super().__init__()
         assert mid_size % num_heads == 0
