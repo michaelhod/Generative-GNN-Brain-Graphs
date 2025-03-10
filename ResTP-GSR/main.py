@@ -97,16 +97,15 @@ def main(config):
     print("Sleeping for 20 seconds to allow for memory logging")
     time.sleep(20)
 
-            
 
-    train_all = False
-    if train_all:
-        # Load dataset
+    output_csv = True
+    if output_csv:
+        print("Training on all data and outputting to csv")
+        # First train on all data
         source_data, target_data = load_dataset(config)
         train_all_data(config, source_data, target_data)
 
-    do_test = False
-    if do_test:
+        # Then evaluate on test data and save to csv
         test_data = load_test(config)
         eval_all_data(config, test_data)
         return
@@ -167,6 +166,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
+        evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
         evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
 
 

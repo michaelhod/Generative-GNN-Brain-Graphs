@@ -1,0 +1,10 @@
+name: 'custom'
+
+n_samples: 167
+
+n_source_nodes: 160
+n_target_nodes: 268
+
+node_feat_init: 'adj'
+
+node_feat_dim: {n_source_nodes}
