@@ -52,7 +52,6 @@ def train_all_data(config, source_data, target_data):
     # Evaluate predicted and target matrices
     predicted = np.array(eval_output)
     target = np.array([t['mat'] for t in target_data])
-    evaluate_matrices(predicted, target, all_metrics=False)
 
     return train_output
 
@@ -92,19 +91,20 @@ def main(config):
     else:
         print("Running on CPU")
 
-    do_test = False
-    if do_test:
-        test_data = load_test(config)
-        eval_all_data(config, test_data)
-        return
-        
+            
 
     train_all = False
     if train_all:
         # Load dataset
         source_data, target_data = load_dataset(config)
         train_all_data(config, source_data, target_data)
+
+    do_test = False
+    if do_test:
+        test_data = load_test(config)
+        eval_all_data(config, test_data)
         return
+
 
     kf = KFold(n_splits=config.experiment.kfold.n_splits, 
                shuffle=config.experiment.kfold.shuffle, 
