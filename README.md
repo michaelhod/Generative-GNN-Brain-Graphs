@@ -2,7 +2,7 @@
 
 ## Contributors
 
-- List the names of your team members and the name of your team.
+- Zimeng Zhou, Som Sinha, Oliver Shakespeare, Nina Peire, Michael Hodgins
 
 ## Problem Description
 

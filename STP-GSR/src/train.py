@@ -6,7 +6,6 @@ from tqdm import tqdm
 from torch_geometric.data import Data
 
 from src.models.stp_gsr import STPGSR
-from src.models.direct_sr import DirectSR
 from src.plot_utils import (
     plot_grad_flow, 
     plot_adj_matrices, 
@@ -20,13 +19,11 @@ from src.dual_graph_utils import revert_dual
 def load_model(config):
     if config.model.name == 'stp_gsr':
         return STPGSR(config)
-    elif config.model.name == 'direct_sr':
-        return DirectSR(config)
     else:
         raise ValueError(f"Unsupported model type: {config.model.name}")
     
 
-def eval(config, model, source_data, target_data, criterion):
+def eval(config, model, source_data, target_data, critereon):
     n_target_nodes = config.dataset.n_target_nodes  # n_t
     
     model.eval()
@@ -50,7 +47,7 @@ def eval(config, model, source_data, target_data, criterion):
 
             eval_output.append(pred_m)
 
-            t_loss = criterion(model_pred, model_target)
+            t_loss = critereon(model_pred, model_target)
 
             eval_loss.append(t_loss) 
 
@@ -74,7 +71,7 @@ def train(config,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.experiment.lr)
-    criterion = torch.nn.L1Loss()
+    critereon = torch.nn.L1Loss()
 
     train_losses = []
     val_losses = []
@@ -108,7 +105,7 @@ def train(config,
                 else:
                     model_pred, model_target = model(source_g, target_m)
 
-                loss = criterion(model_pred, model_target)
+                loss = critereon(model_pred, model_target)
                 loss.backward()
 
                 epoch_loss += loss.item()
@@ -120,19 +117,19 @@ def train(config,
                     #plot_grad_flow(model.named_parameters(), step_counter, tmp_dir)
 
 
-                    # Predicetd and target matrices for plotting
-                    pred_plot = model_pred.detach()
-                    target_plot = model_target.detach()
+                    # # Predicetd and target matrices for plotting
+                    # pred_plot = model_pred.detach()
+                    # target_plot = model_target.detach()
 
-                    # Convert edge features to adjacency matrices
-                    if config.model.name == 'stp_gsr':
-                        pred_plot = revert_dual(pred_plot, n_target_nodes) # (n_t, n_t)
-                        target_plot = revert_dual(target_plot, n_target_nodes) # (n_t, n_t)
+                    # # Convert edge features to adjacency matrices
+                    # if config.model.name == 'stp_gsr':
+                    #     pred_plot = revert_dual(pred_plot, n_target_nodes) # (n_t, n_t)
+                    #     target_plot = revert_dual(target_plot, n_target_nodes) # (n_t, n_t)
 
-                    pred_plot_m = pred_plot.cpu().numpy()
-                    target_plot_m = target_plot.cpu().numpy()
+                    # pred_plot_m = pred_plot.cpu().numpy()
+                    # target_plot_m = target_plot.cpu().numpy()
 
-                    # Log source, target, and predicted adjacency matrices for this iteration
+                    # # Log source, target, and predicted adjacency matrices for this iteration
                     # plot_adj_matrices(source_m.detach().cpu(), pred_plot_m, target_plot_m, step_counter, tmp_dir)
                     
                     # Perform gradient descent
@@ -150,7 +147,7 @@ def train(config,
 
             # Log validation loss
             if config.experiment.log_val_loss:
-                _, val_loss = eval(config, model, source_data_val, target_data_val, criterion)
+                _, val_loss = eval(config, model, source_data_val, target_data_val, critereon)
                 print(f"Epoch {epoch+1}/{config.experiment.n_epochs}, Val Loss: {val_loss}")
                 val_losses.append(val_loss)
 
@@ -177,5 +174,5 @@ def train(config,
 
     return {
         'model': model,
-        'criterion': criterion,
+        'critereon': critereon,
     }

@@ -6,11 +6,80 @@ import torch
 from tqdm import tqdm
 import numpy as np
 from sklearn.model_selection import KFold
+import pandas as pd
 
-from src.train import train, eval
+from src.train import train, eval, eval_test
 from src.plot_utils import plot_adj_matrices
-from src.dataset import load_dataset
+from src.dataset import load_dataset, load_test
 from evaluation import evaluate_matrices
+from MatrixVectorizer import MatrixVectorizer
+
+def train_all_data(config, source_data, target_data):
+    # Initialize results directory
+    base_dir = config.experiment.base_dir
+    model_name = 'stp_gsr_modified'
+    dataset_type = config.dataset.name
+    run_name = config.experiment.run_name
+    run_dir = f'{base_dir}/{model_name}/final/'
+
+    # Initialize folder structure for this run
+    if not os.path.exists(run_dir):
+        os.makedirs(run_dir)
+
+    # Train model for this fold
+    train_output = train(config, 
+                          source_data, 
+                          target_data,
+                          source_data,
+                          target_data, 
+                          run_dir)
+
+    # Evaluate model for this fold
+    eval_output, eval_loss = eval(config, 
+                                  train_output['model'], 
+                                  source_data, 
+                                  target_data, 
+                                  train_output['criterion'])
+
+    # Final evaluation loss for this fold
+    print(f"Final Validation Loss (Target): {eval_loss}")
+
+    # Save source, taregt, and eval output for this fold
+    np.save(f'{run_dir}/eval_output.npy', np.array(eval_output))
+    np.save(f'{run_dir}/source.npy', np.array([s['mat'] for s in source_data]))
+    np.save(f'{run_dir}/target.npy', np.array([t['mat'] for t in target_data]))
+
+    # Evaluate predicted and target matrices
+    predicted = np.array(eval_output)
+    target = np.array([t['mat'] for t in target_data])
+
+    return train_output
+
+def eval_all_data(config, test_data):
+    eval_output = eval_test(config, test_data)
+    # find the shape of eval_output
+    # Get upper triangular using MatrixVectorizer, eval_output = (112, 268,268)
+    # for each eval_output[i], get the upper triangular part and convert it to a matrix
+    print(eval_output.shape)
+    #return eval_output
+    output = []
+    for i in range(len(eval_output)):
+        output.append(MatrixVectorizer.vectorize(eval_output[i], include_diagonal=False))
+    eval_output = np.array(output)
+    print(eval_output.shape)
+
+    y_pred = eval_output.flatten()
+    print(y_pred.shape)
+
+    # Convert tensor to csv
+    df = pd.DataFrame({
+        'ID': np.arange(1, len(y_pred)+1),
+        'Predicted': y_pred
+    })
+
+    df.to_csv('prediction.csv', index=False)
+    print('Prediction saved to prediction.csv')
+
 
 
 @hydra.main(version_base="1.3.2", config_path="configs", config_name="experiment")
@@ -21,6 +90,20 @@ def main(config):
         print("Running on GPU")
     else:
         print("Running on CPU")
+
+
+    output_csv = True
+    if output_csv:
+        print("Training on all data and outputting to csv")
+        # First train on all data
+        source_data, target_data = load_dataset(config)
+        train_all_data(config, source_data, target_data)
+
+        # Then evaluate on test data and save to csv
+        test_data = load_test(config)
+        eval_all_data(config, test_data)
+        return
+
 
     kf = KFold(n_splits=config.experiment.kfold.n_splits, 
                shuffle=config.experiment.kfold.shuffle, 
@@ -77,7 +160,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target, all_metrics=True)
+        evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
 
 
         # Plot predictions for a random sample

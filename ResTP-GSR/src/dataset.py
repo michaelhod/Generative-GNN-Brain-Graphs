@@ -9,6 +9,34 @@ import os
 import pandas as pd
 from MatrixVectorizer import MatrixVectorizer
 
+def load_test(config):
+    n_source_nodes = config.dataset.n_source_nodes
+    n_target_nodes = config.dataset.n_target_nodes
+    n_samples = config.dataset.n_samples
+    
+    if config.dataset.name == 'custom':
+        LR_TEST_DATA_FILE_NAME = "lr_test.csv"
+        DATA_DIR = os.path.join("..", "data")
+        LR_TEST_DATA_PATH = os.path.join(DATA_DIR, LR_TEST_DATA_FILE_NAME)
+
+        df_lr_test = pd.read_csv(LR_TEST_DATA_PATH)
+        test_mat_all = create_custom_graph(df_lr_test, config.dataset.n_source_nodes)
+
+    else:
+        raise ValueError(f"Unsupported dataset type: {config.dataset.name}")
+    
+    # Convert to torch tensors
+    test_mat_all = [torch.tensor(x, dtype=torch.float) for x in test_mat_all]
+        
+    # Convert to PyG
+    node_feat_init = config.dataset.node_feat_init
+    node_feat_dim = config.dataset.node_feat_dim
+    pyg_partial = partial(create_pyg_graph, node_feature_init=node_feat_init, node_feat_dim=node_feat_dim)
+    
+    test_pyg_all = [pyg_partial(x, n_source_nodes) for x in test_mat_all]
+    test_data = [{'pyg': test_pyg, 'mat': test_mat} for test_pyg, test_mat in zip(test_pyg_all, test_mat_all)]
+
+    return test_data
 
 def load_dataset(config):
     n_source_nodes = config.dataset.n_source_nodes
@@ -18,19 +46,22 @@ def load_dataset(config):
     if config.dataset.name == 'custom':
         # Import adjacency matrices from file
         LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
-        #LR_TEST_DATA_FILE_NAME = "lr_test.csv"
+        LR_TEST_DATA_FILE_NAME = "lr_test.csv"
         HR_TRAIN_DATA_FILE_NAME = "hr_train.csv"
 
         DATA_DIR = os.path.join("..", "data")
 
         LR_TRAIN_DATA_PATH = os.path.join(DATA_DIR, LR_TRAIN_DATA_FILE_NAME)
         HR_TRAIN_DATA_PATH = os.path.join(DATA_DIR, HR_TRAIN_DATA_FILE_NAME)
+        LR_TEST_DATA_PATH = os.path.join(DATA_DIR, LR_TEST_DATA_FILE_NAME)
 
         df_lr_train = pd.read_csv(LR_TRAIN_DATA_PATH)
         df_hr_train = pd.read_csv(HR_TRAIN_DATA_PATH)
+        df_lr_test = pd.read_csv(LR_TEST_DATA_PATH)
 
         source_mat_all = create_custom_graph(df_lr_train, config.dataset.n_source_nodes) # the csv file already contains all of our graphs
         target_mat_all = create_custom_graph(df_hr_train, config.dataset.n_target_nodes)
+        test_mat_all = create_custom_graph(df_lr_test, config.dataset.n_source_nodes)
 
     else:
         raise ValueError(f"Unsupported dataset type: {config.dataset.name}")
@@ -38,6 +69,7 @@ def load_dataset(config):
     # Convert to torch tensors
     source_mat_all = [torch.tensor(x, dtype=torch.float) for x in source_mat_all]
     target_mat_all = [torch.tensor(x, dtype=torch.float) for x in target_mat_all]
+    test_mat_all = [torch.tensor(x, dtype=torch.float) for x in test_mat_all]
         
     # Convert to PyG
     node_feat_init = config.dataset.node_feat_init
@@ -46,10 +78,12 @@ def load_dataset(config):
     
     source_pyg_all = [pyg_partial(x, n_source_nodes) for x in source_mat_all]
     target_pyg_all = [pyg_partial(x, n_target_nodes) for x in target_mat_all]
+    test_pyg_all = [pyg_partial(x, n_source_nodes) for x in test_mat_all]
 
     # Prepare source and target data
     source_data = [{'pyg': source_pyg, 'mat': source_mat} for source_pyg, source_mat in zip(source_pyg_all, source_mat_all)]
     target_data = [{'pyg': target_pyg, 'mat': target_mat} for target_pyg, target_mat in zip(target_pyg_all, target_mat_all)]
+    test_data = [{'pyg': test_pyg, 'mat': test_mat} for test_pyg, test_mat in zip(test_pyg_all, test_mat_all)]
 
     return source_data, target_data
 
