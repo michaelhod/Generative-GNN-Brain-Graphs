@@ -37,6 +37,8 @@ def compute_laplacian_energy(graph):
     # Compute Laplacian Energy
     avg_lambda = (2 * m) / n
     energy = np.sum(np.abs(eigenvalues - avg_lambda))
+
+    return energy
 def compute_ricci_curvature(graph):
     """
     Compute the Ricci curvature of a graph.
@@ -135,20 +137,20 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
         pred_ec_values = list(pred_ec.values())
         pred_pc_values = list(pred_pc.values())
         pred_cc_values = list(pred_cc.values())
-        pred_laplacian_values = list(pred_laplacian.values())
+        #pred_laplacian_values = list(pred_laplacian.values())
 
         gt_bc_values = list(gt_bc.values())
         gt_ec_values = list(gt_ec.values())
         gt_pc_values = list(gt_pc.values())
         gt_cc_values = list(gt_cc.values())
-        gt_laplacian_values = list(gt_laplacian.values())
+        #gt_laplacian_values = list(gt_laplacian.values())
 
         # Compute MAEs
         mae_bc.append(mean_absolute_error(pred_bc_values, gt_bc_values))
         mae_ec.append(mean_absolute_error(pred_ec_values, gt_ec_values))
         mae_pc.append(mean_absolute_error(pred_pc_values, gt_pc_values))
         mae_cc.append(mean_absolute_error(pred_cc_values, gt_cc_values))
-        mae_laplacian.append(mean_absolute_error(pred_laplacian_values, gt_laplacian_values))
+        mae_laplacian.append(mean_absolute_error([pred_laplacian], [gt_laplacian]))
 
         # Vectorize matrices
         pred_1d_list.append(MatrixVectorizer.vectorize(pred_matrices[i]))
