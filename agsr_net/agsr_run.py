@@ -65,17 +65,17 @@
 #     args = parser.parse_args()
 
 import sys
-sys.path.append("agsr_net") 
-from agsr_net import preprocessing
-from agsr_net.model import AGSRNet
-from agsr_net.train import train, test
-from evaluation import evaluate_matrices
+from model import AGSRNet
+from train import train, test
 import argparse
 from sklearn.model_selection import KFold
-from MatrixVectorizer import MatrixVectorizer
 import pandas as pd
 import numpy as np
 import torch
+sys.path.append('..')
+from MatrixVectorizer import MatrixVectorizer
+from evaluation import evaluate_matrices
+
 ks = [0.9, 0.7, 0.6, 0.5]
 
 class Args:
