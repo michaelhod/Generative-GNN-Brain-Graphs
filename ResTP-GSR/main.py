@@ -94,11 +94,11 @@ def main(config):
 
     # Sleep for 20 seconds to allow for memory logging
     
-    print("Sleeping for 20 seconds to allow for memory logging")
-    time.sleep(20)
+    #print("Sleeping for 20 seconds to allow for memory logging")
+    #time.sleep(20)
 
 
-    output_csv = True
+    output_csv = False
     if output_csv:
         print("Training on all data and outputting to csv")
         # First train on all data
@@ -110,6 +110,7 @@ def main(config):
         eval_all_data(config, test_data)
         return
 
+    print("Starting k-fold cross validation")
 
     kf = KFold(n_splits=config.experiment.kfold.n_splits, 
                shuffle=config.experiment.kfold.shuffle, 
@@ -166,8 +167,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
-        evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
+        evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=True)
 
 
         # Plot predictions for a random sample
