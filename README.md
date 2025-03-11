@@ -28,7 +28,7 @@ The dual is then converted back into the primal.
 ## Used External Libraries
 
 To install the required dependencies, run: 
-**'pip install -r requirements.txt'**
+*'pip install -r requirements.txt'*
 
 ## Results
 
@@ -39,16 +39,16 @@ To install the required dependencies, run:
 
 We use the findings from P. Singh and I. Rekik on topoligical preserving GNNs [3], and build on this work to create ResTP-GSR, using other graph modelling techniques.
 
--[1] M. Isallari and I. Rekik, ‘‘Brain graph super-resolution using adversarial
+- M. Isallari and I. Rekik, ‘‘Brain graph super-resolution using adversarial
 graph neural network with application to functional brain connectivity,’’
 Medical Image Analysis, vol. 71, p. 102084, 2021. [Online]. Available:
 https://www.sciencedirect.com/science/article/pii/S1361841521001304
--[2] E. Van Reeth, I. W. K. Tham, C. H. Tan, and C. L. Poh, ‘‘Super-
+- E. Van Reeth, I. W. K. Tham, C. H. Tan, and C. L. Poh, ‘‘Super-
 resolution in magnetic resonance imaging: A review,’’ Concepts in
 Magnetic Resonance Part A, vol. 40A, no. 6, pp. 306–325, 2012.
 [Online]. Available: https://onlinelibrary.wiley.com/doi/abs/10.1002/cmr.
 a.21249
--[3] P. Singh and I. Rekik, Strongly Topology-Preserving GNNs for
+- P. Singh and I. Rekik, Strongly Topology-Preserving GNNs for
 Brain Graph Super-Resolution. Springer Nature Switzerland, Oct.
 2024, p. 124–136. [Online]. Available: http://dx.doi.org/10.1007/
 978-3-031-74561-4_11
