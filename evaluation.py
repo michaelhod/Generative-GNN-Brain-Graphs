@@ -10,33 +10,56 @@ import numpy as np
 import torch
 import pandas as pd
 
-def compute_laplacian_energy(graph):
+
+def compute_small_worldness(graph, seed=42):
     """
-    Compute the Laplacian energy of a graph.
+    Computes the small-worldness of a graph using an alternative method:
     
-    Params:
-    - graph : networkx.Graph
-        The graph for which to compute the Laplacian energy.
+    1. Computes L (average shortest path length) and C (clustering coefficient).
+    2. Generates a reference small-world graph using Watts-Strogatz model.
+    3. Computes L_rand and C_rand from the reference graph.
+    4. Computes small-worldness as:
     
+       SW = (L / C) / (L_rand / C_rand)
+
     Returns:
-    - float: The Laplacian energy of the graph.
+        float: The small-worldness coefficient.
     """
-    # Compute Laplacian matrix
-    L = nx.laplacian_matrix(graph).toarray()
+    np.random.seed(seed)
     
-    # Compute eigenvalues of the Laplacian matrix
-    eigenvalues = eigvalsh(L)
-    
-    # Number of nodes
     n = graph.number_of_nodes()
-    
-    # Number of edges
     m = graph.number_of_edges()
     
-    # Compute Laplacian Energy
-    avg_lambda = (2 * m) / n
-    energy = np.sum(np.abs(eigenvalues - avg_lambda))
-    return energy
+    avg_degree = int(2 * m / n)  # Ensuring even degree count
+    
+    try:
+        L = nx.average_shortest_path_length(graph, weight="weight")
+    except nx.NetworkXError:
+        largest_cc = max(nx.connected_components(graph), key=len)
+        subgraph = graph.subgraph(largest_cc)
+        L = nx.average_shortest_path_length(subgraph, weight="weight")
+
+    C = nx.average_clustering(graph, weight="weight")
+    
+    if avg_degree < 2:  # Ensure valid degree for WS model
+        avg_degree = 2
+    small_world_ref = nx.watts_strogatz_graph(n, avg_degree, p=0.3, seed=seed)
+
+    try:
+        L_rand = nx.average_shortest_path_length(small_world_ref)
+    except nx.NetworkXError:
+        largest_cc_rand = max(nx.connected_components(small_world_ref), key=len)
+        subgraph_rand = small_world_ref.subgraph(largest_cc_rand)
+        L_rand = nx.average_shortest_path_length(subgraph_rand)
+
+    C_rand = nx.average_clustering(small_world_ref)
+    
+    if C != 0 and C_rand != 0:
+        sw = (L / C) / (L_rand / C_rand)
+    else:
+        sw = np.nan  
+
+    return sw
 
 def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metrics=False):
     """
@@ -91,7 +114,7 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
     mae_ec = []
     mae_pc = []
     mae_cc = [] # clustering coefficient
-    mae_laplacian = [] # Laplacian energy
+    mae_sw = [] # small-worldness
     
     # Iterate over each test sample
     for i in range(num_test_samples):
@@ -105,13 +128,13 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
         pred_ec = nx.eigenvector_centrality(pred_graph, weight="weight")
         pred_pc = nx.pagerank(pred_graph, weight="weight")
         pred_cc = nx.clustering(pred_graph, weight="weight")
-        pred_laplacian = compute_laplacian_energy(pred_graph)
+        pred_sw = compute_small_worldness(pred_graph)
 
         gt_bc = nx.betweenness_centrality(gt_graph, weight="weight")
         gt_ec = nx.eigenvector_centrality(gt_graph, weight="weight")
         gt_pc = nx.pagerank(gt_graph, weight="weight")
         gt_cc = nx.clustering(gt_graph, weight="weight")
-        gt_laplacian = compute_laplacian_energy(gt_graph)   
+        gt_sw = compute_small_worldness(gt_graph)   
 
 
         # Convert centrality dictionaries to lists
@@ -119,20 +142,21 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
         pred_ec_values = list(pred_ec.values())
         pred_pc_values = list(pred_pc.values())
         pred_cc_values = list(pred_cc.values())
-        pred_laplacian_values = list(pred_laplacian.values())
 
         gt_bc_values = list(gt_bc.values())
         gt_ec_values = list(gt_ec.values())
         gt_pc_values = list(gt_pc.values())
         gt_cc_values = list(gt_cc.values())
-        gt_laplacian_values = list(gt_laplacian.values())
 
         # Compute MAEs
         mae_bc.append(mean_absolute_error(pred_bc_values, gt_bc_values))
         mae_ec.append(mean_absolute_error(pred_ec_values, gt_ec_values))
         mae_pc.append(mean_absolute_error(pred_pc_values, gt_pc_values))
         mae_cc.append(mean_absolute_error(pred_cc_values, gt_cc_values))
-        mae_laplacian.append(mean_absolute_error(pred_laplacian_values, gt_laplacian_values))
+
+            # Compute absolute difference for small-worldness
+        if not np.isnan(pred_sw) and not np.isnan(gt_sw):
+            mae_sw.append(abs(pred_sw - gt_sw))
 
         # Vectorize matrices
         pred_1d_list.append(MatrixVectorizer.vectorize(pred_matrices[i]))
@@ -143,7 +167,7 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
     avg_mae_ec = sum(mae_ec) / len(mae_ec)
     avg_mae_pc = sum(mae_pc) / len(mae_pc)
     avg_mae_cc = sum(mae_cc) / len(mae_cc)
-    avg_mae_laplacian = sum(mae_laplacian) / len(mae_laplacian)
+    avg_mae_sw = sum(mae_sw) / len(mae_sw)
 
     # Concatenate flattened matrices
     pred_1d = np.concatenate(pred_1d_list)
@@ -161,7 +185,7 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
     print("Average MAE eigenvector centrality:", avg_mae_ec)
     print("Average MAE PageRank centrality:", avg_mae_pc)
     print("Average MAE clustering coefficient:", avg_mae_cc)
-    print("Average MAE Laplacian:", avg_mae_laplacian)
+    print("Average MAE Small-World:", avg_mae_sw)
 
     data = {
         "MAE": mae,
@@ -171,7 +195,7 @@ def evaluate_matrices(pred_matrices, gt_matrices, fold_num, model_name, all_metr
         "MAE_EC": avg_mae_ec,
         "MAE_PC": avg_mae_pc,
         "MAE_CC": avg_mae_cc,
-        "MAE_Laplacian": avg_mae_laplacian
+        "MAE_SW": avg_mae_sw
     }
 
     df = pd.DataFrame(data=data, index=[0])
