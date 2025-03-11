@@ -23,7 +23,7 @@ The Target Edge Initialiser upsamples the Low-Resolution Graph in two phases (16
 The Dual Graph Learner then converts the graph from its primal form to the dual, after which the values are refined using another TransformerConv block with residual connections.
 The dual is then converted back into the primal.
 
-![Model Figure](model_figure.png)
+![Model Figure](figures/model_figure.png)
 
 ## Used External Libraries
 
@@ -31,7 +31,8 @@ To install the required dependencies, run: 'pip install -r requirements.txt'.
 
 ## Results
 
-- Insert your bar plots.
+![ResTP-GSR Performance](figures/ResTP-GSR-performance.png)
+![Model Comparisons](figures/comparison-plot.png)
 
 ## References
 
