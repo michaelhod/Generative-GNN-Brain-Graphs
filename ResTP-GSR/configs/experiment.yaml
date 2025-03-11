@@ -1,10 +1,10 @@
 defaults:
   - _self_
   - dataset: sbm
-  - model: stp_gsr
+  - model: restp_gsr
 
 experiment:
-  n_epochs: 40
+  n_epochs: 30
   batch_size: 16
 
   lr: 0.001

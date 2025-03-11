@@ -60,6 +60,10 @@ def eval_all_data(config, test_data):
     # find the shape of eval_output
     # Get upper triangular using MatrixVectorizer, eval_output = (112, 268,268)
     # for each eval_output[i], get the upper triangular part and convert it to a matrix
+    save_to_csv(eval_output, 'prediction.csv')
+
+
+def save_to_csv(eval_output, name):
     print(eval_output.shape)
     #return eval_output
     output = []
@@ -77,8 +81,8 @@ def eval_all_data(config, test_data):
         'Predicted': y_pred
     })
 
-    df.to_csv('prediction.csv', index=False)
-    print('Prediction saved to prediction.csv')
+    df.to_csv(name, index=False)
+    print('Prediction saved to {}'.format(name))
 
 
 
@@ -92,7 +96,7 @@ def main(config):
         print("Running on CPU")
 
 
-    output_csv = True
+    output_csv = False
     if output_csv:
         print("Training on all data and outputting to csv")
         # First train on all data
@@ -148,6 +152,9 @@ def main(config):
                                       source_data_val, 
                                       target_data_val, 
                                       train_output['criterion'])
+        
+        # Save predictions for this fold to csv
+        save_to_csv(np.array(eval_output), f'{res_dir}/predictions_fold{fold+1}.csv')
 
         # Final evaluation loss for this fold
         print(f"Final Validation Loss (Target): {eval_loss}")
