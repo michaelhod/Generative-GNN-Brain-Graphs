@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -84,7 +85,7 @@ def train_model(model, X_train, y_train, X_val, y_val, fold_num):
     y_val_matrix[y_val_matrix < 0] = 0
 
     print("Evaluating matrices...")
-    metrics = evaluate_matrices(y_pred_matrix, y_val_matrix, fold_num=fold_num, model_name='mlp', all_metrics=True)
+    metrics = evaluate_matrices(y_pred_matrix, y_val_matrix, fold_num=fold_num, model_name='mlp', all_metrics=False)
     metrics['val_loss'] = val_loss.item()
 
     return model, metrics
@@ -124,6 +125,11 @@ def train_all_data(model, X_train, y_train):
 
 
 if __name__ == "__main__":
+    # Sleep for 20 seconds to allow for memory logging
+    
+    print("Sleeping for 20 seconds to allow for memory logging")
+    time.sleep(20)
+
     LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
     LR_TEST_DATA_FILE_NAME = "lr_test.csv"
     HR_TRAIN_DATA_FILE_NAME = "hr_train.csv"

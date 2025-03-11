@@ -7,8 +7,8 @@ import time
 import csv
 
 # Set the target PID
-PID = 3972692
-LOG_FILE = "memory_usage_log_2.csv"
+PID = 381986
+LOG_FILE = "memory_usage_log_stp_gsr.csv"
 
 def log_memory_usage(pid, log_file, interval=2):
     """
