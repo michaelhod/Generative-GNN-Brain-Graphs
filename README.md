@@ -28,7 +28,8 @@ The dual is then converted back into the primal.
 ## Used External Libraries
 
 To install the required dependencies, run: 
-*'pip install -r requirements.txt'*
+`pip install -r requirements.txt`
+
 
 ## Results
 
