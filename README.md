@@ -27,7 +27,8 @@ The dual is then converted back into the primal.
 
 ## Used External Libraries
 
-To install the required dependencies, run: 'pip install -r requirements.txt'.
+To install the required dependencies, run: 
+**'pip install -r requirements.txt'**
 
 ## Results
 
@@ -36,7 +37,7 @@ To install the required dependencies, run: 'pip install -r requirements.txt'.
 
 ## References
 
-- We use the findings from P. Singh and I. Rekik on topoligical preserving GNNs [3], and build on this work to create ResTP-GSR, using other graph modelling techniques.
+We use the findings from P. Singh and I. Rekik on topoligical preserving GNNs [3], and build on this work to create ResTP-GSR, using other graph modelling techniques.
 
 -[1] M. Isallari and I. Rekik, ‘‘Brain graph super-resolution using adversarial
 graph neural network with application to functional brain connectivity,’’
