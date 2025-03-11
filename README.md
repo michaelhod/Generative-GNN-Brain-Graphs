@@ -8,6 +8,23 @@
 1. `cd ResTP-GSR`
 2. `python3 main.py dataset='custom'`
 
+`main.py` contains code to run the 3-fold cross-validation on our model, ResTP-GSR. It also saves the predictions for each fold in `ResTP-GSR/results/restp_gsr/custom/run1/fold_*/predictions_fold*.csv`. It will also generate the bar plots and save them in `evaluation/soap/evaluation.png`
+
+All the configurations can be modified in `config/experiment.yaml`, `config/model/restp_gsr.yaml`, and `config/dataset/custom.yaml`. The results generated used the default configuration.
+
+In `config/experiment.yaml` we can configure the training parameters:
+
+- `n_epochs`: number of epochs to train the model, the default is 30
+- `batch_size`: number of samples in each training batch, the default is 16
+- `output_csv`: bool to specify if we want to train on all the training data (for kaggle)
+
+In `config/model/restp_gsr.yaml` we can configure our model parameters in the following two blocks:
+
+- `target_edge_initializer` 
+- `dual_learner`
+
+In `config/dataset/custom.yaml` we configure our dataset parameters.
+
 ## Problem Description
 <!-- A short description of the problem you are solving. Why is the brain graph super-resolution an ineresting problem to solve? -->
 This repository focuses on the problem of Brain Graph Super-Resolution. Graph super-resolution is the process of generating a graph with $N'$ nodes from a graph with $N$ nodes, where $N' > N$. The goal is to develop a model capable of inferring a higher-resolution graph from a lower-resolution graph, with additional nodes (and edges), while preserving the structure and functional properties of the original graph.
