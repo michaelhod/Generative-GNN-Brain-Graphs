@@ -24,4 +24,4 @@
 
 ## References
 
-- Do not forget to include the references to methods you used to build your model.
+- D
