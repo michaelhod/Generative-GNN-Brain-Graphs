@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,9 +8,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
-
-from evaluation import evaluate_matrices
+import sys
 from MatrixVectorizer import MatrixVectorizer
+sys.path.append('..')
+from evaluation import evaluate_matrices
 
 
 class NaiveMLP(nn.Module):
@@ -36,9 +38,9 @@ class NaiveMLP(nn.Module):
         return self.model(x)
 
 
-def train_model(model, X_train, y_train, X_val, y_val):
+def train_model(model, X_train, y_train, X_val, y_val, fold_num):
     learning_rate = 0.001
-    num_epochs = 50
+    num_epochs = 20
     batch_size = 64
 
     X_train_tensor = torch.FloatTensor(X_train.values)
@@ -83,7 +85,7 @@ def train_model(model, X_train, y_train, X_val, y_val):
     y_val_matrix[y_val_matrix < 0] = 0
 
     print("Evaluating matrices...")
-    metrics = evaluate_matrices(y_pred_matrix, y_val_matrix, all_metrics=False)
+    metrics = evaluate_matrices(y_pred_matrix, y_val_matrix, fold_num=fold_num, model_name='mlp', all_metrics=False)
     metrics['val_loss'] = val_loss.item()
 
     return model, metrics
@@ -123,13 +125,18 @@ def train_all_data(model, X_train, y_train):
 
 
 if __name__ == "__main__":
+    # Sleep for 20 seconds to allow for memory logging
+    
+    print("Sleeping for 20 seconds to allow for memory logging")
+    time.sleep(20)
+
     LR_TRAIN_DATA_FILE_NAME = "lr_train.csv"
     LR_TEST_DATA_FILE_NAME = "lr_test.csv"
     HR_TRAIN_DATA_FILE_NAME = "hr_train.csv"
 
-    LR_TRAIN_DATA_PATH = os.path.join("data", LR_TRAIN_DATA_FILE_NAME)
-    LR_TEST_DATA_PATH = os.path.join("data", LR_TEST_DATA_FILE_NAME)
-    HR_TRAIN_DATA_PATH = os.path.join("data", HR_TRAIN_DATA_FILE_NAME)
+    LR_TRAIN_DATA_PATH = os.path.join("..", "data", LR_TRAIN_DATA_FILE_NAME)
+    LR_TEST_DATA_PATH = os.path.join("..", "data", LR_TEST_DATA_FILE_NAME)
+    HR_TRAIN_DATA_PATH = os.path.join("..", "data", HR_TRAIN_DATA_FILE_NAME)
 
     df_lr_train = pd.read_csv(LR_TRAIN_DATA_PATH)
     df_lr_test = pd.read_csv(LR_TEST_DATA_PATH)
@@ -144,38 +151,38 @@ if __name__ == "__main__":
     X = df_lr_train
     y = df_hr_train
 
-    # fold_metrics = []
-    # for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
-    #     print(f"Fold {fold + 1}/{k_folds}")
+    fold_metrics = []
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+        print(f"Fold {fold + 1}/{k_folds}")
         
-    #     # Split data for this fold
-    #     X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
-    #     y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+        # Split data for this fold
+        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
         
-    #     print(f"  Training samples: {X_train.shape[0]}")
-    #     print(f"  Validation samples: {X_val.shape[0]}")
+        print(f"  Training samples: {X_train.shape[0]}")
+        print(f"  Validation samples: {X_val.shape[0]}")
         
-    #     model = NaiveMLP(
-    #         input_dim=12720,
-    #         hidden_dims=[4096, 2048, 1024, 512],
-    #         output_dim=35778,
-    #         dropout_rate=0.3
-    #     )
+        model = NaiveMLP(
+            input_dim=12720,
+            hidden_dims=[4096, 2048, 1024, 512],
+            output_dim=35778,
+            dropout_rate=0.3
+        )
 
-    #     model, metrics = train_model(model, X_train, y_train, X_val, y_val)
-    #     fold_metrics.append(metrics)
+        model, metrics = train_model(model, X_train, y_train, X_val, y_val, fold_num=fold)
+        fold_metrics.append(metrics)
 
-    #     print(f"  Validation Loss: {metrics['val_loss']:.4f}")
-    # print(fold_metrics)
+        print(f"  Validation Loss: {metrics['val_loss']:.4f}")
+    print(fold_metrics)
 
     # Train on all data
-    model = NaiveMLP(
-        input_dim=12720,
-        hidden_dims=[4096, 2048, 1024, 512],
-        output_dim=35778,
-        dropout_rate=0.3
-    )
-    model = train_all_data(model, X, y)
+    # model = NaiveMLP(
+    #     input_dim=12720,
+    #     hidden_dims=[4096, 2048, 1024, 512],
+    #     output_dim=35778,
+    #     dropout_rate=0.3
+    # )
+    # model = train_all_data(model, X, y)
     # Save model
-    torch.save(model.state_dict(), "model.pth")
-    print("Model saved")
+    # torch.save(model.state_dict(), "model.pth")
+    # print("Model saved")

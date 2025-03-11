@@ -1,4 +1,4 @@
-name: stp_gsr
+name: restp_gsr
 
 # Hyper-parameters for the TargetEdgeInitializer
 target_edge_initializer:

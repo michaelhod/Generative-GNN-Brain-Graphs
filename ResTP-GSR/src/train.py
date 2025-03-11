@@ -17,7 +17,7 @@ from src.dual_graph_utils import revert_dual
 
 
 def load_model(config):
-    if config.model.name == 'stp_gsr':
+    if config.model.name == 'restp_gsr':
         return STPGSR(config)
     else:
         raise ValueError(f"Unsupported model type: {config.model.name}")
@@ -45,7 +45,7 @@ def eval_test(config, test_data):
 
             model_pred, model_target = model(source_g, target_m) 
 
-            if config.model.name == 'stp_gsr':
+            if config.model.name == 'restp_gsr':
                 pred_m = revert_dual(model_pred, n_target_nodes)    # (n_t, n_t)
                 pred_m = pred_m.cpu().numpy()
             else:
@@ -82,7 +82,7 @@ def eval(config, model, source_data, target_data, criterion):
 
             model_pred, model_target = model(source_g, target_m) 
 
-            if config.model.name == 'stp_gsr':
+            if config.model.name == 'restp_gsr':
                 pred_m = revert_dual(model_pred, n_target_nodes)    # (n_t, n_t)
                 pred_m = pred_m.cpu().numpy()
             else:
@@ -143,7 +143,7 @@ def train(config,
                 # We pass the target matrix to the forward pass for consistency:
                 # For our STP-GSR model, its easier to directly compare dual graph features of shape (n_t*(n_t-1)/2, 1)
                 # Whereas, DirectSR model predicts the target matrix directly of shape (n_t, n_t)
-                if config.model.name == 'stp_gsr':
+                if config.model.name == 'restp_gsr':
                     model_pred, model_target = model(source_g, target_m)      # both (n_t*(n_t-1)/2, 1)
                 else:
                     model_pred, model_target = model(source_g, target_m)
@@ -165,7 +165,7 @@ def train(config,
                     target_plot = model_target.detach()
 
                     # Convert edge features to adjacency matrices
-                    if config.model.name == 'stp_gsr':
+                    if config.model.name == 'restp_gsr':
                         pred_plot = revert_dual(pred_plot, n_target_nodes) # (n_t, n_t)
                         target_plot = revert_dual(target_plot, n_target_nodes) # (n_t, n_t)
 

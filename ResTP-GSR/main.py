@@ -1,4 +1,5 @@
 import sys
+import time
 sys.path.append('..')
 import os
 import hydra
@@ -7,6 +8,7 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.model_selection import KFold
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from src.train import train, eval, eval_test
 from src.plot_utils import plot_adj_matrices
@@ -60,6 +62,10 @@ def eval_all_data(config, test_data):
     # find the shape of eval_output
     # Get upper triangular using MatrixVectorizer, eval_output = (112, 268,268)
     # for each eval_output[i], get the upper triangular part and convert it to a matrix
+    save_to_csv(eval_output, 'prediction.csv')
+
+
+def save_to_csv(eval_output, name):
     print(eval_output.shape)
     #return eval_output
     output = []
@@ -77,8 +83,44 @@ def eval_all_data(config, test_data):
         'Predicted': y_pred
     })
 
-    df.to_csv('prediction.csv', index=False)
-    print('Prediction saved to prediction.csv')
+    df.to_csv(name, index=False)
+    print('Prediction saved to {}'.format(name))
+
+def generate_plots():
+    print("Generating plots...")
+    df_fold_0 = pd.read_csv('../evaluation/soap/fold_0.csv')
+    df_fold_1 = pd.read_csv('../evaluation/soap/fold_1.csv')
+    df_fold_2 = pd.read_csv('../evaluation/soap/fold_2.csv')
+
+    # Calculate the mean and standard deviation
+    df_all = pd.concat([df_fold_0, df_fold_1, df_fold_2])
+    df_average = df_all.groupby(level=0).mean()
+    df_std = df_all.groupby(level=0).std()
+
+    # Ensure column names match when using error bars
+    df_std.columns = df_average.columns  # Align std columns with mean columns
+
+    colors = ['red', 'blue', 'green', 'purple', 'orange', 'brown']
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+
+    # Plot Fold 1
+    df_fold_0.iloc[0].plot(ax=axes[0, 0], title='Fold 1', kind='bar', color=colors, fontsize=12)
+
+    # Plot Fold 2
+    df_fold_1.iloc[0].plot(ax=axes[0, 1], title='Fold 2', kind='bar', color=colors, fontsize=12)
+
+    # Plot Fold 3
+    df_fold_2.iloc[0].plot(ax=axes[1, 0], title='Fold 3', kind='bar', color=colors, fontsize=12)
+
+    # Plot Average with Standard Deviation Error Bars
+    df_average.iloc[0].plot(ax=axes[1, 1], title='Average', kind='bar', color=colors, fontsize=12, 
+                            yerr=df_std.iloc[0].values, capsize=5, alpha=0.7)
+
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig('../evaluation/soap/evaluation.png')
 
 
 
@@ -91,9 +133,13 @@ def main(config):
     else:
         print("Running on CPU")
 
+    # Sleep for 20 seconds to allow for memory logging
+    
+    #print("Sleeping for 20 seconds to allow for memory logging")
+    #time.sleep(20)
 
-    output_csv = True
-    if output_csv:
+
+    if config.experiment.output_csv:
         print("Training on all data and outputting to csv")
         # First train on all data
         source_data, target_data = load_dataset(config)
@@ -104,6 +150,7 @@ def main(config):
         eval_all_data(config, test_data)
         return
 
+    print("Starting k-fold cross validation")
 
     kf = KFold(n_splits=config.experiment.kfold.n_splits, 
                shuffle=config.experiment.kfold.shuffle, 
@@ -148,6 +195,9 @@ def main(config):
                                       source_data_val, 
                                       target_data_val, 
                                       train_output['criterion'])
+        
+        # Save predictions for this fold to csv
+        save_to_csv(np.array(eval_output), f'{res_dir}/predictions_fold{fold+1}.csv')
 
         # Final evaluation loss for this fold
         print(f"Final Validation Loss (Target): {eval_loss}")
@@ -162,20 +212,8 @@ def main(config):
         target = np.array([t['mat'] for t in target_data_val])
         evaluate_matrices(predicted, target, fold_num=fold, model_name='soap', all_metrics=False)
 
-
-        # Plot predictions for a random sample
-        idx = 6
-        source_mat_test = source_data_val[idx]['mat']
-        target_mat_test = target_data_val[idx]['mat']
-        eval_output_t = eval_output[idx]
-
-        plot_adj_matrices(source_mat_test, 
-                          target_mat_test, 
-                          eval_output_t, 
-                          idx, 
-                          res_dir, 
-                          file_name=f'eval_sample{idx}')
-        
+    # Generate plots
+    generate_plots()
 
 if __name__ == "__main__":
     main()

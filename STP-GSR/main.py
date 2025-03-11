@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 import numpy as np
 from sklearn.model_selection import KFold
-
+import time
 from src.train import train, eval
 from src.plot_utils import plot_adj_matrices
 from src.dataset import load_dataset
@@ -25,6 +25,11 @@ def main(config):
     kf = KFold(n_splits=config.experiment.kfold.n_splits, 
                shuffle=config.experiment.kfold.shuffle, 
                random_state=config.experiment.kfold.random_state)
+
+    # Sleep for 20 seconds to allow for memory logging
+    
+    print("Sleeping for 20 seconds to allow for memory logging")
+    time.sleep(20)
 
     # Initialize folder structure for this run
     base_dir = config.experiment.base_dir
@@ -77,7 +82,7 @@ def main(config):
         # Evaluate predicted and target matrices
         predicted = np.array(eval_output)
         target = np.array([t['mat'] for t in target_data_val])
-        evaluate_matrices(predicted, target, fold, model_name, all_metrics=False)
+        evaluate_matrices(predicted, target, fold, 'stp-gsr', all_metrics=False)
 
         # Plot predictions for a random sample
         idx = 6
